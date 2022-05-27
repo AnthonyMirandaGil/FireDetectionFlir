@@ -2,6 +2,7 @@ package com.example.firedetectionflir;
 
 
 import android.graphics.Bitmap;
+import android.os.Environment;
 import android.util.Log;
 
 import androidx.annotation.Nullable;
@@ -27,6 +28,7 @@ import com.flir.thermalsdk.live.streaming.Streamer;
 import com.flir.thermalsdk.live.streaming.ThermalStreamer;
 import com.flir.thermalsdk.utils.Consumer;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
@@ -39,6 +41,7 @@ public class CameraHandler {
     LinkedList<Identity> foundCameraIdentities = new LinkedList<>();
     private Palette palette;
     public FusionMode fusionMode = FusionMode.THERMAL_ONLY;
+    private Boolean captureImage = false;
 
     public interface DiscoveryStatus {
         void started();
@@ -117,9 +120,33 @@ public class CameraHandler {
 
     }
 
+    public void takePicture(){
+        if(camera != null){
+        captureImage = true;
+        }
+        /*ImageBuffer imageBuffer = streamer.getImage();
+        streamer.withThermalImage(new Consumer<ThermalImage>() {
+            @Override
+            public void accept(ThermalImage thermalImage) {
+                thermalImage.setPalette(palette);
+                thermalImage.getFusion().setFusionMode(fusionMode);
+            }
+        });*/
+    }
+
+    private String newImagePath(){
+        Long timeSeconds = System.currentTimeMillis() / 1000;
+        String stringTs = timeSeconds.toString();
+        File imageSDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES);
+        //String p = Environment.getExternalStorageDirectory(Environment.DIRECTORY_PICTURES);
+        File file = new File(imageSDir, stringTs + ".jpg" );
+        return file.getAbsolutePath();
+    }
+
     private void refreshThermalFrame(){
         streamer.update();
         ImageBuffer imageBuffer = streamer.getImage();
+
         streamer.withThermalImage(new Consumer<ThermalImage>() {
             @Override
             public void accept(ThermalImage thermalImage) {
@@ -130,6 +157,15 @@ public class CameraHandler {
                     msxBitmap = BitmapAndroid.createBitmap(imageBuffer).getBitMap();
                     if(msxBitmap != null){
                         streamDataListener.images(msxBitmap);
+                        if(captureImage == true){
+                            try {
+                                thermalImage.saveAs(newImagePath());
+                                captureImage = false;
+                            } catch (IOException e) {
+                                e.printStackTrace();
+                            }
+                            captureImage = false;
+                        }
                     }
                 }
 

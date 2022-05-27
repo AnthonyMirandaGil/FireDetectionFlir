@@ -62,6 +62,14 @@ public class MainActivity extends AppCompatActivity {
         permissionHandler = new PermissionHandler(showMessage, MainActivity.this);
         cameraHandler = new CameraHandler();
 
+        btnTakePicture.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+
+                cameraHandler.takePicture();
+            }
+        });
+
     }
 
     private final ShowMessage showMessage = new ShowMessage() {
