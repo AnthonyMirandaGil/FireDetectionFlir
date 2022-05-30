@@ -121,9 +121,30 @@ public class CameraHandler {
     }
 
     public void takePicture(){
-        if(camera != null){
-        captureImage = true;
+        if(streamer !=null) {
+            ImageBuffer imageBuffer = streamer.getImage();
+            streamer.withThermalImage(new Consumer<ThermalImage>() {
+                @Override
+                public void accept(ThermalImage thermalImage) {
+                    Long timeSeconds = System.currentTimeMillis() / 1000;
+                    String stringTs = timeSeconds.toString();
+                    File imageSDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES);
+                    //String p = Environment.getExternalStorageDirectory(Environment.DIRECTORY_PICTURES);
+                    File image = new File(imageSDir, stringTs + ".jpg" );
+
+                    thermalImage.setPalette(palette);
+                    thermalImage.getFusion().setFusionMode(fusionMode);
+                    try {
+                        thermalImage.saveAs(image.getAbsolutePath());
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
+            });
         }
+        /*if(camera != null){
+        captureImage = true;
+        }*/
         /*ImageBuffer imageBuffer = streamer.getImage();
         streamer.withThermalImage(new Consumer<ThermalImage>() {
             @Override
@@ -157,15 +178,6 @@ public class CameraHandler {
                     msxBitmap = BitmapAndroid.createBitmap(imageBuffer).getBitMap();
                     if(msxBitmap != null){
                         streamDataListener.images(msxBitmap);
-                        if(captureImage == true){
-                            try {
-                                thermalImage.saveAs(newImagePath());
-                                captureImage = false;
-                            } catch (IOException e) {
-                                e.printStackTrace();
-                            }
-                            captureImage = false;
-                        }
                     }
                 }
 
