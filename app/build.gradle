@@ -55,12 +55,17 @@ dependencies {
     // LiveData
     implementation "androidx.lifecycle:lifecycle-livedata:$lifecycle_version"
 
+
+    // Annotation processor
+    annotationProcessor "androidx.lifecycle:lifecycle-compiler:$lifecycle_version"
+
     implementation 'androidx.appcompat:appcompat:1.4.1'
     implementation 'com.google.android.material:material:1.6.0'
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
 
     implementation files('libs/androidsdk-release.aar')
     implementation files('libs/thermalsdk-release.aar')
+
     implementation group: 'org.bytedeco', name: 'javacv', version: '1.5.6'
     javacpp group: 'org.bytedeco', name: 'openblas-platform', version: '0.3.17-1.5.6'
     javacpp group: 'org.bytedeco', name: 'opencv-platform', version: '4.5.3-1.5.6'

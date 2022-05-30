@@ -131,6 +131,7 @@ public class VideoRecorder {
 
         recorder.setSampleRate(sampleAudioRateInHz);
 
+        recorder.setVideoQuality(100);
         //recorder.setPixelFormat(avutil.AV_PIX_FMT_YUV420P);
         // recorder.setVideoQuality(1);
         Log.v(TAG_LOG, "PixelFormat: 0" );
