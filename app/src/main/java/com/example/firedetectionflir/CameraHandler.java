@@ -112,7 +112,6 @@ public class CameraHandler {
         }else {
             Log.d(TAG,"No se encontro stremear");
         }
-
     }
 
     public synchronized void startStream(StreamDataListener listener) {

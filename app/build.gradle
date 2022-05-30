@@ -25,6 +25,10 @@ android {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
     }
+
+    buildFeatures {
+        viewBinding true
+    }
 }
 
 configurations {
@@ -44,9 +48,17 @@ task javacppExtract(type: Copy) {
 
 dependencies {
 
+    def lifecycle_version = "2.4.1"
+
+    // ViewModel
+    implementation "androidx.lifecycle:lifecycle-viewmodel:$lifecycle_version"
+    // LiveData
+    implementation "androidx.lifecycle:lifecycle-livedata:$lifecycle_version"
+
     implementation 'androidx.appcompat:appcompat:1.4.1'
     implementation 'com.google.android.material:material:1.6.0'
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+
     implementation files('libs/androidsdk-release.aar')
     implementation files('libs/thermalsdk-release.aar')
     implementation group: 'org.bytedeco', name: 'javacv', version: '1.5.6'
