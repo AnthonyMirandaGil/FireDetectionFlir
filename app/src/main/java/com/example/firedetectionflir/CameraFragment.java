@@ -91,8 +91,9 @@ public class CameraFragment extends Fragment {
     private UsbPermissionHandler usbPermissionHandler = new UsbPermissionHandler();
     private Thread rafagaThread;
     private Handler handler = new Handler();
-    final int delay = 5000;
+    final int delay = 1000;
     private final String TAG = "CameraFragment";
+    private Boolean saveTemperature = false;
     Runnable runnable;
     private final String [] recordPermissions = {
             Manifest.permission.WRITE_EXTERNAL_STORAGE,
@@ -395,42 +396,23 @@ public class CameraFragment extends Fragment {
 
                     thermalImage.setPalette(currentPallete);
                     thermalImage.getFusion().setFusionMode(currentFusionMode);
-                    Bitmap msxBitmap;
-                    {
-                        msxBitmap = BitmapAndroid.createBitmap(imageBuffer).getBitMap();
+                    /*double [] temperatures = thermalImage.getValues(new Rectangle(0, 0, thermalImage.getWidth(), thermalImage.getHeight()));*/
 
-                        thermalImage.setTemperatureUnit(TemperatureUnit.CELSIUS);
-
-                        //double [] temperatures = thermalImage.getValues(new Rectangle(0, 0, thermalImage.getWidth(), thermalImage.getHeight()));
-                        ThermalValue centerTemp = thermalImage.getValueAt(new com.flir.thermalsdk.image.Point(thermalImage.getWidth() / 2, thermalImage.getHeight() / 2));
-
-                        Log.d(TAG, "adding images to cache");
-                        Log.d(TAG, "Thermal Image Size: (" + thermalImage.getWidth() + "," + thermalImage.getHeight() + ")");
-                        Log.d(TAG, "MsxBitMap Image Size: (" + msxBitmap.getWidth() + "," + msxBitmap.getHeight() + ")");
-                        int centerY = msxBitmap.getHeight() / 2;
-                        int centerX = msxBitmap.getWidth() / 2;
-
-                        AndroidFrameConverter converterToFrame = new AndroidFrameConverter();
-                        Frame frame = converterToFrame.convert(msxBitmap);
-                        // Umbral para detectar objetos
-
-
-                        OpenCVFrameConverter.ToMat converterToMat = new OpenCVFrameConverter.ToMat();
-                        Mat matImage = converterToMat.convert(frame);
-
-                        putText(matImage, centerTemp.asCelsius() + "", new Point(centerX + 20, centerY), FONT_HERSHEY_COMPLEX, 1.0, new Scalar(0, 255, 0, 0.2));
-                        circle(matImage, new Point(centerX, centerY), 4, new Scalar(255, 0, 0, 0.2), 4, LINE_AA, 0);
-
-
-                        Log.v(TAG, "Writing Frame");
-                        frame = converterToMat.convert(matImage);
-                        msxBitmap = converterToFrame.convert(frame);
-                    }
                     try {
                         thermalImage.saveAs(image.getAbsolutePath());
                     } catch (IOException e) {
                         e.printStackTrace();
                     }
+
+                    /*new Thread(() -> {
+                        try {
+                            ThermalCSVWriter thermalCSVWriter = new ThermalCSVWriter(null, "image_" + stringTs);
+                            thermalCSVWriter.saveThermalValues(temperatures, 0);
+                            thermalCSVWriter.close();
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                    }).start();*/
                 }
             });
 
@@ -446,6 +428,7 @@ public class CameraFragment extends Fragment {
             @Override
             public void accept(ThermalImage thermalImage) {
                 Bitmap msxBitmap;
+                double [] temperatures;
                 {
                     thermalImage.setPalette(currentPallete);
                     thermalImage.getFusion().setFusionMode(currentFusionMode);
@@ -466,6 +449,7 @@ public class CameraFragment extends Fragment {
                     Frame frame = converterToFrame.convert(msxBitmap);
                     // Umbral para detectar objetos
 
+                    //temperatures = thermalImage.getValues(new Rectangle(0, 0, thermalImage.getWidth(), thermalImage.getHeight()));
 
                     OpenCVFrameConverter.ToMat converterToMat = new OpenCVFrameConverter.ToMat();
                     Mat matImage = converterToMat.convert(frame);
@@ -484,6 +468,16 @@ public class CameraFragment extends Fragment {
                 if(videoRecorder!= null && videoRecorder.recording == true){
                     try {
                         videoRecorder.recordImage(msxBitmap);
+                        /*new Thread(() -> {
+                            try {
+                               // ThermalCSVWriter thermalCSVWriter = new ThermalCSVWriter(getContext(), "image_" + stringTs);
+                                thermalCSVWriter.saveThermalValues(temperatures, 0);
+                                //thermalCSVWriter.close();
+                            } catch (IOException e) {
+                                e.printStackTrace();
+                            }
+                        }).start();
+                        */
                     } catch (FFmpegFrameRecorder.Exception e) {
                         e.printStackTrace();
                     }
