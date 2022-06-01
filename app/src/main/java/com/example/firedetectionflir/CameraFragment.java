@@ -91,7 +91,9 @@ public class CameraFragment extends Fragment {
     private UsbPermissionHandler usbPermissionHandler = new UsbPermissionHandler();
     private Thread rafagaThread;
     private Handler handler = new Handler();
-    final int delay = 1000;
+    private Handler handlerSleep = new Handler();
+    final int delay = 40;
+
     private final String TAG = "CameraFragment";
     private Boolean saveTemperature = false;
     Runnable runnable;
@@ -149,7 +151,7 @@ public class CameraFragment extends Fragment {
             @Override
             public void onClick(View v) {
                 verifyRequiredPermissionsWrite();
-                takePicture();
+                takePicture(true);
             }
         });
 
@@ -244,7 +246,6 @@ public class CameraFragment extends Fragment {
                     default:
                         fusionMode = FusionMode.THERMAL_ONLY;
                         break;
-
                 }
 
                 currentFusionMode = fusionMode;
@@ -260,13 +261,22 @@ public class CameraFragment extends Fragment {
             @Override
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
                 if(isChecked){
-                    handler.postDelayed(runnable = new Runnable() {
+                    Toast.makeText(getContext(), "Start automatic capture in 15 seconds", Toast.LENGTH_SHORT).show();
+                    //waitDelay();
+
+                    handlerSleep.postDelayed(new Runnable() {
                         @Override
                         public void run() {
-                            takePicture();
-                            handler.postDelayed(this, delay);
+                            Toast.makeText(getContext(), "Starting automatic capture every " + delay / 1000.0 + " seconds", Toast.LENGTH_SHORT).show();
+                            handler.postDelayed(runnable = new Runnable() {
+                                @Override
+                                public void run() {
+                                    takePicture(false);
+                                    handler.postDelayed(this, delay);
+                                }
+                            }, delay);
                         }
-                    }, delay);
+                    }, 15000);
 
                     /*if(rafagaThread == null){
                         rafagaThread = new Thread(new Runnable() {
@@ -276,13 +286,26 @@ public class CameraFragment extends Fragment {
                             }
                         });
                     }*/
+                    //Toast.makeText(getContext(), "Start automatic capture every " + delay / 1000.0 + "seconds", Toast.LENGTH_SHORT).show();
                 } else {
                     handler.removeCallbacks(runnable);
+                    handlerSleep.removeCallbacks(runnable);
+                    Toast.makeText(getContext(), "Stop automatic capture", Toast.LENGTH_SHORT).show();
                 }
             }
         });
         return fragmentCameraBinding.getRoot();
         //return inflater.inflate(R.layout.fragment_camera, container, false);
+    }
+
+    private synchronized void waitDelay(){
+        //Handler handler = new Handler();
+        handler.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                //Toast.makeText(getContext(), "Start automatic capture every " + delay / 1000.0 + "seconds", Toast.LENGTH_SHORT).show();
+            }
+        },15000);
     }
 
     private void verifyRequiredPermissionsRecord() {
@@ -380,7 +403,7 @@ public class CameraFragment extends Fragment {
         }
     }
 
-    public void takePicture() {
+    public void takePicture(Boolean verbose) {
         if (streamer != null) {
             ImageBuffer imageBuffer = streamer.getImage();
 
@@ -388,11 +411,11 @@ public class CameraFragment extends Fragment {
                 @Override
                 public void accept(ThermalImage thermalImage) {
 
-                    Long timeSeconds = System.currentTimeMillis() / 1000;
+                    Long timeSeconds = System.currentTimeMillis() / 10;
                     String stringTs = timeSeconds.toString();
                     File imageSDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES);
                     //String p = Environment.getExternalStorageDirectory(Environment.DIRECTORY_PICTURES);
-                    File image = new File(imageSDir, stringTs + ".jpg");
+                    File image = new File(imageSDir,  "flir_image_" + stringTs + ".jpg");
 
                     thermalImage.setPalette(currentPallete);
                     thermalImage.getFusion().setFusionMode(currentFusionMode);
@@ -416,7 +439,9 @@ public class CameraFragment extends Fragment {
                 }
             });
 
-            Toast.makeText(getContext(), "Image Saved", Toast.LENGTH_SHORT).show();
+            if(verbose == true){
+                Toast.makeText(getContext(), "Image Saved", Toast.LENGTH_SHORT).show();
+            }
         }
     }
 
@@ -491,6 +516,7 @@ public class CameraFragment extends Fragment {
 
     public void onPause() {
         handler.removeCallbacks(runnable);
+        handlerSleep.removeCallbacks(runnable);
         fragmentCameraBinding.enableRafaga.setChecked(false);
         super.onPause();
     }

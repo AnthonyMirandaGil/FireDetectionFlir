@@ -103,7 +103,7 @@
         android:layout_height="wrap_content"
         android:layout_marginStart="3dp"
         android:layout_marginBottom="15dp"
-        android:text="Take photo every 2 seconds"
+        android:text="Take photo every 1 seconds"
         app:layout_constraintBottom_toTopOf="@+id/btnTakePicture"
         app:layout_constraintStart_toStartOf="parent" />
 
