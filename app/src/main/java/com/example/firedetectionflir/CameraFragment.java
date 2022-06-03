@@ -26,6 +26,7 @@ import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.CompoundButton;
+import android.widget.SeekBar;
 import android.widget.Spinner;
 import android.widget.Toast;
 
@@ -92,8 +93,8 @@ public class CameraFragment extends Fragment {
     private Thread rafagaThread;
     private Handler handler = new Handler();
     private Handler handlerSleep = new Handler();
-    final int delay = 40;
-
+    private int delay = 50;
+    private int fpsTake;
     private final String TAG = "CameraFragment";
     private Boolean saveTemperature = false;
     Runnable runnable;
@@ -172,7 +173,7 @@ public class CameraFragment extends Fragment {
                         e.printStackTrace();
                     }
                     fragmentCameraBinding.recordButton.setText("Stop Video");
-                }else {
+                } else {
                     Toast.makeText(getContext(),"Stop Video", Toast.LENGTH_SHORT).show();
                     videoRecorder.stop();
                     videoRecorder = null;
@@ -261,7 +262,7 @@ public class CameraFragment extends Fragment {
             @Override
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
                 if(isChecked){
-                    Toast.makeText(getContext(), "Start automatic capture in 15 seconds", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(getContext(), "Start automatic capture in 3 seconds", Toast.LENGTH_SHORT).show();
                     //waitDelay();
 
                     handlerSleep.postDelayed(new Runnable() {
@@ -276,7 +277,7 @@ public class CameraFragment extends Fragment {
                                 }
                             }, delay);
                         }
-                    }, 15000);
+                    }, 3000);
 
                     /*if(rafagaThread == null){
                         rafagaThread = new Thread(new Runnable() {
@@ -292,6 +293,27 @@ public class CameraFragment extends Fragment {
                     handlerSleep.removeCallbacks(runnable);
                     Toast.makeText(getContext(), "Stop automatic capture", Toast.LENGTH_SHORT).show();
                 }
+            }
+        });
+        fragmentCameraBinding.seekBar.setMax(30);
+
+        //fragmentCameraBinding.seekBar.setMin(1);
+        fragmentCameraBinding.seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                fpsTake = progress;
+
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {
+
+            }
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
+                delay = 1000 / fpsTake;
+                Toast.makeText(getContext(),"FPS: " + fpsTake, Toast.LENGTH_SHORT).show();
             }
         });
         return fragmentCameraBinding.getRoot();
