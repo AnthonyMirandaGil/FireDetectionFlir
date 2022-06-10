@@ -31,6 +31,9 @@ import android.widget.Spinner;
 import android.widget.Toast;
 
 import com.example.firedetectionflir.databinding.FragmentCameraBinding;
+import com.example.firedetectionflir.model.AlertDataModel;
+import com.example.firedetectionflir.service.AlertService;
+import com.example.firedetectionflir.service.RetrofitInstance;
 import com.flir.thermalsdk.ErrorCode;
 import com.flir.thermalsdk.androidsdk.image.BitmapAndroid;
 import com.flir.thermalsdk.androidsdk.live.connectivity.UsbPermissionHandler;
@@ -67,6 +70,10 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
+
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
 
 /**
  * A simple {@link Fragment} subclass.
@@ -316,6 +323,32 @@ public class CameraFragment extends Fragment {
                 Toast.makeText(getContext(),"FPS: " + fpsTake, Toast.LENGTH_SHORT).show();
             }
         });
+
+        fragmentCameraBinding.alertBtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                AlertService alertService = RetrofitInstance.getService();
+                AlertDataModel alertDataModel = new AlertDataModel("150 C", "Aqui", "20m","17:31");
+                Call<AlertDataModel> call = alertService.PostAlert(alertDataModel);
+                call.enqueue(new Callback<AlertDataModel>() {
+                    @Override
+                    public void onResponse(Call<AlertDataModel> call, Response<AlertDataModel> response) {
+                        AlertDataModel resp = response.body();
+                        Toast.makeText(getContext(), "Envio Alerta", Toast.LENGTH_SHORT).show();
+                        //Log.i("TAG", "" + resp);
+
+                    }
+
+                    @Override
+                    public void onFailure(Call<AlertDataModel> call, Throwable t) {
+                        Log.i("TAG", t.toString());
+                        Toast.makeText(getContext(), "Error Alerta: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+                    }
+                });
+
+            }
+        });
+
         return fragmentCameraBinding.getRoot();
         //return inflater.inflate(R.layout.fragment_camera, container, false);
     }
