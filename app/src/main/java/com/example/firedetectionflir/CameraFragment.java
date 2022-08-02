@@ -32,7 +32,9 @@ import android.widget.Toast;
 
 import com.example.firedetectionflir.databinding.FragmentCameraBinding;
 import com.example.firedetectionflir.model.AlertDataModel;
+import com.example.firedetectionflir.model.RadarDistanceModel;
 import com.example.firedetectionflir.service.AlertService;
+import com.example.firedetectionflir.service.RadarService;
 import com.example.firedetectionflir.service.RetrofitInstance;
 import com.flir.thermalsdk.ErrorCode;
 import com.flir.thermalsdk.androidsdk.image.BitmapAndroid;
@@ -115,8 +117,10 @@ public class CameraFragment extends Fragment {
     private Boolean saveTemperature = false;
     private final double TEMPERATURE_THRESHOLD = 25.0;
     private Boolean alertSent = false;
-
+    private FireForestDetector fireForestDetector;
     Runnable runnable;
+    private Boolean activatedDetectionFire = false;
+
     private final String [] recordPermissions = {
             Manifest.permission.WRITE_EXTERNAL_STORAGE,
             Manifest.permission.RECORD_AUDIO,
@@ -158,14 +162,14 @@ public class CameraFragment extends Fragment {
             }
         });
 
-        fragmentCameraBinding.status.setText("Connected to: " + identity.deviceId);
+        //fragmentCameraBinding.status.setText("Connected to: " + identity.deviceId);
 
-        cameraViewModel.errorInfoLiveData.observe(getViewLifecycleOwner(), new Observer<String>() {
-            @Override
-            public void onChanged(String s) {
-                fragmentCameraBinding.status.setText(s);
-            }
-        });
+        //cameraViewModel.errorInfoLiveData.observe(getViewLifecycleOwner(), new Observer<String>() {
+        //    @Override
+        //    public void onChanged(String s) {
+        //       fragmentCameraBinding.status.setText(s);
+        //    }
+        //});
 
         fragmentCameraBinding.btnTakePicture.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -339,28 +343,12 @@ public class CameraFragment extends Fragment {
         fragmentCameraBinding.alertBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                AlertService alertService = RetrofitInstance.getService();
-                AlertDataModel alertDataModel = new AlertDataModel("150 C", "Aqui", "20m","17:31");
-                Call<AlertDataModel> call = alertService.PostAlert(alertDataModel);
-                call.enqueue(new Callback<AlertDataModel>() {
-                    @Override
-                    public void onResponse(Call<AlertDataModel> call, Response<AlertDataModel> response) {
-                        AlertDataModel resp = response.body();
-                        Toast.makeText(getContext(), "Envio Alerta", Toast.LENGTH_SHORT).show();
-                        //Log.i("TAG", "" + resp);
-
-                    }
-
-                    @Override
-                    public void onFailure(Call<AlertDataModel> call, Throwable t) {
-                        Log.i("TAG", t.toString());
-                        Toast.makeText(getContext(), "Error Alerta: " + t.getMessage(), Toast.LENGTH_SHORT).show();
-                    }
-                });
+                activatedDetectionFire = true;
 
             }
         });
 
+        fireForestDetector = new FireForestLogicDetector();
         return fragmentCameraBinding.getRoot();
         //return inflater.inflate(R.layout.fragment_camera, container, false);
     }
@@ -512,6 +500,25 @@ public class CameraFragment extends Fragment {
         }
     }
 
+    private double getRadarDistance(){
+        RadarService radarService = RetrofitInstance.getServiceRadar();
+
+        Call<RadarDistanceModel> call = radarService.getRadarDistance();
+        call.enqueue(new Callback<RadarDistanceModel>() {
+            @Override
+            public void onResponse(Call<RadarDistanceModel> call, Response<RadarDistanceModel> response) {
+                RadarDistanceModel radarDistance = response.body();
+                Log.d("Radar", radarDistance.toString());
+            }
+
+            @Override
+            public void onFailure(Call<RadarDistanceModel> call, Throwable t) {
+
+            }
+        });
+        return 10.0;
+    }
+
     private void sendAlert(double maxTemperatureC, String position, double distanceM, String time){
         AlertService alertService = RetrofitInstance.getService();
         AlertDataModel alertDataModel = new AlertDataModel(maxTemperatureC + " C", position, distanceM + " m", time);
@@ -531,7 +538,7 @@ public class CameraFragment extends Fragment {
                         alertSent = false;
                         Log.d(TAG, "New Alert");
                     }
-                }, 5000);
+                }, 10000);
             }
 
             @Override
@@ -543,33 +550,44 @@ public class CameraFragment extends Fragment {
     }
 
     private void fireDetection(Frame frame, double [] temperatures){
-        // Find max temperature
-        double maxTemperature = 0.0;
         // if alert already have been sent
-        if (alertSent == true) return;
+        //Log.d(TAG, "activatedDetectionFire: " + activatedDetectionFire );
+        if(activatedDetectionFire == false) return;
+        if(alertSent == true) return;
 
-        for(double temperature : temperatures){
-            if(temperature > maxTemperature){
-                maxTemperature = temperature;
+        Boolean fire = fireForestDetector.detectFire(frame, temperatures);
+
+        if (fire){
+            Log.d(TAG, "Warning: Fuegooooooooooooooooo!");
+            // Toast.makeText(getContext(), "Fuego", Toast.LENGTH_LONG).show();
+            // Get Max Temperature
+            double maxTemperature = 0.0;
+            for(double temperature : temperatures){
+                if(temperature > maxTemperature){
+                    maxTemperature = temperature;
+                }
             }
-        }
 
-        // Detect high temperature
-        if (maxTemperature >= TEMPERATURE_THRESHOLD) {
             Log.d(TAG, "Warning: Alta temperatura detectada");
-            Toast.makeText(getContext(),"Fire detected", Toast.LENGTH_SHORT ).show();
+            //Toast.makeText(getContext(),"Fire detected", Toast.LENGTH_SHORT ).show();
             // Fire detection in rgb part
             String position = "aqui ps";
-            double distance = 20.5;
+
+            // Get distance
+            double distance = 10.0;
+
             // Get time
             Date date = Calendar.getInstance().getTime();
             DateFormat dateFormat = new SimpleDateFormat("yyyy-mm-dd hh:mm:ss");
             String srtDate = dateFormat.format(date);
-
             // Enviar alerta
             sendAlert(maxTemperature, position, distance, srtDate);
+        } else{
+            Log.d(TAG, "No hay Fuegoooooooooooooo");
+            //Toast.makeText(getContext(), "No hay Fuego", Toast.LENGTH_LONG).show();
         }
-        //
+        activatedDetectionFire = false;
+        // Find max temperature
     }
 
     private void refreshThermalFrame(){
@@ -591,9 +609,9 @@ public class CameraFragment extends Fragment {
                     //double [] temperatures = thermalImage.getValues(new Rectangle(0, 0, thermalImage.getWidth(), thermalImage.getHeight()));
                     ThermalValue centerTemp = thermalImage.getValueAt(new com.flir.thermalsdk.image.Point(thermalImage.getWidth()/ 2, thermalImage.getHeight()/2));
 
-                    Log.d(TAG, "adding images to cache");
-                    Log.d(TAG, "Thermal Image Size: (" + thermalImage.getWidth() + "," + thermalImage.getHeight() + ")");
-                    Log.d(TAG, "MsxBitMap Image Size: (" + msxBitmap.getWidth() + "," + msxBitmap.getHeight() + ")");
+                    //Log.d(TAG, "adding images to cache");
+                    //Log.d(TAG, "Thermal Image Size: (" + thermalImage.getWidth() + "," + thermalImage.getHeight() + ")");
+                    //Log.d(TAG, "MsxBitMap Image Size: (" + msxBitmap.getWidth() + "," + msxBitmap.getHeight() + ")");
                     int centerY = msxBitmap.getHeight() / 2;
                     int centerX  = msxBitmap.getWidth() / 2;
 
@@ -601,8 +619,8 @@ public class CameraFragment extends Fragment {
                     Frame frame = converterToFrame.convert(msxBitmap);
 
                     // Umbral para detectar objetos
-
                     temperatures = thermalImage.getValues(new Rectangle(0, 0, thermalImage.getWidth(), thermalImage.getHeight()));
+
 
                     // Fire deteccion and Alert
                     fireDetection(frame, temperatures);
@@ -614,7 +632,7 @@ public class CameraFragment extends Fragment {
                     circle(matImage,  new Point(centerX,centerY), 4, new Scalar(255,0,0, 0.2), 4, LINE_AA,0);
 
 
-                    Log.v(TAG, "Writing Frame");
+                    //Log.v(TAG, "Writing Frame");
                     frame = converterToMat.convert(matImage);
                     msxBitmap = converterToFrame.convert(frame);
 
