@@ -34,6 +34,7 @@ import com.example.firedetectionflir.databinding.FragmentCameraBinding;
 import com.example.firedetectionflir.model.AlertDataModel;
 import com.example.firedetectionflir.model.RadarDistanceModel;
 import com.example.firedetectionflir.service.AlertService;
+import com.example.firedetectionflir.service.DesktopHost;
 import com.example.firedetectionflir.service.RadarService;
 import com.example.firedetectionflir.service.RetrofitInstance;
 import com.flir.thermalsdk.ErrorCode;
@@ -118,6 +119,8 @@ public class CameraFragment extends Fragment {
     private final double TEMPERATURE_THRESHOLD = 25.0;
     private Boolean alertSent = false;
     private FireForestDetector fireForestDetector;
+    private DesktopHost desktopHost;
+
     Runnable runnable;
     private Boolean activatedDetectionFire = false;
 
@@ -343,6 +346,9 @@ public class CameraFragment extends Fragment {
                 if(activatedDetectionFire == false)
 {
                   activatedDetectionFire = true;
+
+                  desktopHost.notifyStartFireDetection();
+
                   fragmentCameraBinding.alertBtn.setText("Stop Fire Detection");
                 }else{
                   activatedDetectionFire = false;
@@ -352,6 +358,10 @@ public class CameraFragment extends Fragment {
         });
 
         fireForestDetector = new FireForestLogicDetector();
+        // Connect to server in desktop app
+        desktopHost = new DesktopHost();
+        desktopHost.connect();
+
         return fragmentCameraBinding.getRoot();
         //return inflater.inflate(R.layout.fragment_camera, container, false);
     }
