@@ -1,6 +1,8 @@
 package com.example.firedetectionflir.service;
 
 
+import com.example.firedetectionflir.model.AlertDataModel;
+
 import java.net.URISyntaxException;
 
 import io.socket.client.IO;
@@ -24,11 +26,15 @@ public class DesktopHost {
         }
         mSocket.connect();
     }
-    public void alertFire(){
-        mSocket.emit("alertFire");
+    public void alertFire(AlertDataModel data){
+        mSocket.emit("fireDetected", data);
     }
 
     public void notifyStartFireDetection(){
         mSocket.emit("startFireDetection", "Comienzar Detecction");
+    }
+
+    public void notifyStopFireDetection(){
+        mSocket.emit("stopFireDetection", "Detener Detecction");
     }
 }

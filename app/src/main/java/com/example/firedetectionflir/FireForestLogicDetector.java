@@ -27,7 +27,7 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 
 public class FireForestLogicDetector implements FireForestDetector{
-    private float temperatureThreshold = 120.0F;
+    private float temperatureThreshold = 70.0F;
     private float areaThreshold = 1.0F;
     private final String TAG = "FireForestLogicDetector";
     public FireForestLogicDetector() {

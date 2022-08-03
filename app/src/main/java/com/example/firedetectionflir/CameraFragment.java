@@ -351,7 +351,9 @@ public class CameraFragment extends Fragment {
 
                   fragmentCameraBinding.alertBtn.setText("Stop Fire Detection");
                 }else{
+
                   activatedDetectionFire = false;
+                  desktopHost.notifyStopFireDetection();
                   fragmentCameraBinding.alertBtn.setText("Start Fire Detection");
                 }
             }
@@ -562,6 +564,23 @@ public class CameraFragment extends Fragment {
         });
     }
 
+    private void sendAlertSocket(double maxTemperatureC, String position, double distanceM, String time){
+        AlertService alertService = RetrofitInstance.getService();
+        AlertDataModel alertDataModel = new AlertDataModel(maxTemperatureC + " C", position, distanceM + " m", time);
+        desktopHost.alertFire(alertDataModel);
+
+        alertSent = true;
+        Handler handler = new Handler();
+
+        handler.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                alertSent = false;
+                Log.d(TAG, "New Alert");
+            }
+        }, 10000);
+    }
+
     private void fireDetection(Frame frame, double [] temperatures){
         // if alert already have been sent
         //Log.d(TAG, "activatedDetectionFire: " + activatedDetectionFire );
@@ -594,7 +613,7 @@ public class CameraFragment extends Fragment {
             DateFormat dateFormat = new SimpleDateFormat("yyyy-mm-dd hh:mm:ss");
             String srtDate = dateFormat.format(date);
             // Enviar alerta
-            sendAlert(maxTemperature, position, distance, srtDate);
+            sendAlertSocket(maxTemperature, position, distance, srtDate);
         } else{
             Log.d(TAG, "No hay Fuegoooooooooooooo");
             //Toast.makeText(getContext(), "No hay Fuego", Toast.LENGTH_LONG).show();
