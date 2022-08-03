@@ -5,7 +5,7 @@ import retrofit2.converter.gson.GsonConverterFactory;
 
 public class RetrofitInstance {
     private static Retrofit retrofit = null;
-    private static String BASE_URL = "http://192.168.13.109:5000/api/";
+    private static String BASE_URL = "http://192.168.0.11:5000/api/";
     private static String BASE_URL_RADAR = "http://192.168.1.20:5000/api/";
     private static Retrofit retrofitRadarService;
 

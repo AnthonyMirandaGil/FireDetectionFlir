@@ -27,7 +27,7 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 
 public class FireForestLogicDetector implements FireForestDetector{
-    private float temperatureThreshold = 30.0F;
+    private float temperatureThreshold = 70.0F;
     private float areaThreshold = 1.0F;
     private final String TAG = "FireForestLogicDetector";
     public FireForestLogicDetector() {
@@ -51,23 +51,23 @@ public class FireForestLogicDetector implements FireForestDetector{
         Mat matFrame = converterToMat.convert(frame);
         //Mat maskRGB = matFrame.clone(); //new Mat(heigth, width, CV_8UC3);
         //matFrame.convertTo(maskRGB, CV_8UC3);
+        Mat mask = new Mat(heigth,width, CV_8UC1);
+        cvtColor(matFrame, mask, CV_BGR2GRAY);
 
-
-        UByteIndexer maskIndexer = matFrame.createIndexer();
+        UByteIndexer maskIndexer = mask.createIndexer();
         for (int x =0 ; x < width ; x++){
             for(int y =0; y< heigth; y++) {
                 n = x + (y * width);
                 valueTemp = temperatures[n];
                 //int pixel = BLACK;
                 if(valueTemp >= this.temperatureThreshold) {
-                    maskIndexer.put(y, x, WHITE);
+                    maskIndexer.put(y, x, 255);
                 }else {
-                    maskIndexer.put(y, x, BLACK);
+                    maskIndexer.put(y, x, 0);
                 }
             }
         }
-        Mat mask = new Mat(heigth,width, CV_8UC1);
-        cvtColor(matFrame, mask, CV_BGR2GRAY);
+
         //Mat mask = Mat.zeros(maskRGB.size(), CV_8UC1).asMat();
 
         //maskRGB.convertTo(mask, CV_8UC1);
