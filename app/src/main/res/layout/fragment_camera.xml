@@ -36,8 +36,10 @@
         android:layout_height="wrap_content"
         android:layout_marginStart="4dp"
         android:layout_marginTop="10dp"
+        android:layout_marginEnd="34dp"
         android:text="Fusion Mode"
         android:textSize="16sp"
+        app:layout_constraintEnd_toStartOf="@+id/spinnerFusion"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/tvPaletta" />
 
@@ -46,50 +48,52 @@
         android:layout_width="0dp"
         android:layout_height="24dp"
         app:layout_constraintBottom_toBottomOf="@+id/tvFusionMode"
-        app:layout_constraintEnd_toEndOf="@+id/alertBtn"
-        app:layout_constraintStart_toStartOf="@+id/spinnerPalette"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toEndOf="@+id/tvFusionMode"
         app:layout_constraintTop_toTopOf="@+id/tvFusionMode" />
 
     <ImageView
         android:id="@+id/streamingView"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        android:layout_marginTop="12dp"
-        android:layout_marginBottom="12dp"
+        android:layout_marginStart="1dp"
+        android:layout_marginTop="11dp"
+        android:layout_marginEnd="1dp"
+        android:layout_marginBottom="11dp"
         android:src="@drawable/ic_launcher_foreground"
         app:layout_constraintBottom_toTopOf="@+id/textView"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/spinnerFusion" />
+        app:layout_constraintTop_toBottomOf="@+id/tvFusionMode" />
 
     <Button
         android:id="@+id/btnTakePicture"
-        android:layout_width="0dp"
+        android:layout_width="131dp"
         android:layout_height="wrap_content"
-        android:layout_marginStart="3dp"
-        android:layout_marginEnd="18dp"
-        android:layout_marginBottom="29dp"
+        android:layout_marginStart="44dp"
+        android:layout_marginEnd="45dp"
+        android:layout_marginBottom="5dp"
         android:text="Take Picture"
-        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintBottom_toTopOf="@+id/alertBtn"
         app:layout_constraintEnd_toStartOf="@+id/recordButton"
-        app:layout_constraintStart_toStartOf="parent" />
+        app:layout_constraintStart_toStartOf="@+id/tvRafaga" />
 
     <Button
         android:id="@+id/recordButton"
         android:layout_width="130dp"
         android:layout_height="wrap_content"
-        android:layout_marginEnd="29dp"
+        android:layout_marginStart="14dp"
         android:text="Start Record"
         app:layout_constraintBottom_toBottomOf="@+id/btnTakePicture"
-        app:layout_constraintEnd_toEndOf="@+id/enableRafaga"
+        app:layout_constraintStart_toStartOf="@+id/enableRafaga"
         app:layout_constraintTop_toTopOf="@+id/btnTakePicture" />
 
     <TextView
         android:id="@+id/tvRafaga"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginStart="3dp"
-        android:layout_marginBottom="17dp"
+        android:layout_marginStart="4dp"
+        android:layout_marginBottom="15dp"
         android:text="Take photo every 1 seconds"
         app:layout_constraintBottom_toTopOf="@+id/btnTakePicture"
         app:layout_constraintStart_toStartOf="parent" />
@@ -98,7 +102,7 @@
         android:id="@+id/enableRafaga"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginStart="36dp"
+        android:layout_marginStart="31dp"
         android:text="enabled"
         app:layout_constraintBottom_toBottomOf="@+id/tvRafaga"
         app:layout_constraintStart_toEndOf="@+id/tvRafaga"
@@ -108,11 +112,10 @@
         android:id="@+id/seekBar"
         android:layout_width="0dp"
         android:layout_height="23dp"
-        android:layout_marginStart="32dp"
-        android:layout_marginEnd="21dp"
-        android:layout_marginBottom="15dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="14dp"
         app:layout_constraintBottom_toTopOf="@+id/enableRafaga"
-        app:layout_constraintEnd_toEndOf="@+id/streamingView"
+        app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toEndOf="@+id/textView" />
 
     <TextView
@@ -120,8 +123,10 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginStart="4dp"
+        android:layout_marginEnd="36dp"
         android:text="FPS"
         app:layout_constraintBottom_toBottomOf="@+id/seekBar"
+        app:layout_constraintEnd_toStartOf="@+id/seekBar"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="@+id/seekBar" />
 
@@ -129,10 +134,10 @@
         android:id="@+id/alertBtn"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginStart="11dp"
-        android:text="Alert"
-        app:layout_constraintBottom_toBottomOf="@+id/recordButton"
-        app:layout_constraintStart_toEndOf="@+id/recordButton"
-        app:layout_constraintTop_toTopOf="@+id/recordButton" />
+        android:layout_marginEnd="39dp"
+        android:layout_marginBottom="16dp"
+        android:text="Start Fire Detection"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="@+id/recordButton" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -180,7 +180,6 @@ public class CameraFragment extends Fragment {
         });
 
         fragmentCameraBinding.recordButton.setOnClickListener(new View.OnClickListener() {
-
             @Override
             public void onClick(View v) {
                 verifyRequiredPermissionsRecord();
@@ -227,7 +226,6 @@ public class CameraFragment extends Fragment {
                 currentPallete = PaletteManager.getDefaultPalettes().get(0);
             }
         });
-
 
         fusionModes = new ArrayList<String>(Arrays.asList(new String[]{
                 "Thermal Only",
@@ -325,7 +323,6 @@ public class CameraFragment extends Fragment {
             @Override
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
                 fpsTake = progress;
-
             }
 
             @Override
@@ -343,8 +340,14 @@ public class CameraFragment extends Fragment {
         fragmentCameraBinding.alertBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                activatedDetectionFire = true;
-
+                if(activatedDetectionFire == false)
+{
+                  activatedDetectionFire = true;
+                  fragmentCameraBinding.alertBtn.setText("Stop Fire Detection");
+                }else{
+                  activatedDetectionFire = false;
+                  fragmentCameraBinding.alertBtn.setText("Start Fire Detection");
+                }
             }
         });
 
@@ -586,7 +589,7 @@ public class CameraFragment extends Fragment {
             Log.d(TAG, "No hay Fuegoooooooooooooo");
             //Toast.makeText(getContext(), "No hay Fuego", Toast.LENGTH_LONG).show();
         }
-        activatedDetectionFire = false;
+        //activatedDetectionFire = false;
         // Find max temperature
     }
 
