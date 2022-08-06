@@ -27,11 +27,21 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 
 public class FireForestLogicDetector implements FireForestDetector{
-    private float temperatureThreshold = 70.0F;
-    private float areaThreshold = 1.0F;
+    private float temperatureThreshold = 60.0F;
+    private float areaThreshold = 0.5F;
     private final String TAG = "FireForestLogicDetector";
+   // RGB camera fov
+    final double hfov = 50;
+    final double vfov = 38;
+    final double Sw = 0.620;
+    final double Sh = 0.6136;
+    final int width = 480 ;
+    final int heigth = 640;
+    // to thermal image scel
     public FireForestLogicDetector() {
     }
+
+    private double areaFire;
 
     public FireForestLogicDetector(float temperatureThreshold, float areaThreshold) {
         this.temperatureThreshold = temperatureThreshold;
@@ -39,9 +49,8 @@ public class FireForestLogicDetector implements FireForestDetector{
     }
 
     @Override
-    public boolean detectFire(Frame frame, double[] temperatures) {
-        int width = 480 ;
-        int heigth = 640;
+    public boolean detectFire(Frame frame, double[] temperatures, double altura) {
+   ;
         final int[] WHITE = {255, 255, 255};
         final int[] BLACK = {0, 0, 0};
         int n;
@@ -69,10 +78,7 @@ public class FireForestLogicDetector implements FireForestDetector{
         }
 
         //Mat mask = Mat.zeros(maskRGB.size(), CV_8UC1).asMat();
-
         //maskRGB.convertTo(mask, CV_8UC1);
-
-
         // save mask
         AndroidFrameConverter converterToFrame = new AndroidFrameConverter();
         Frame maskFrame = converterToMat.convert(mask);
@@ -93,10 +99,11 @@ public class FireForestLogicDetector implements FireForestDetector{
 
         MatVector contours = new MatVector();
         findContours(mask, contours, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);
+
+
         // Calcule Areas
         //Mat dist_8u = new Mat();
         //mask.convertTo(dist_8u, CV_8U);
-
 
         Log.d(TAG,"Contrours size:" + contours.size());
 
@@ -104,19 +111,54 @@ public class FireForestLogicDetector implements FireForestDetector{
 
 
         for (int i=0; i < contours.size(); i++){
-            areas[i] = contourArea(contours.get(i));
+            double areaPixels = contourArea(contours.get(i));
+            areas[i] = this.convertAreaMeters(areaPixels, altura);
         }
-
+        Log.d(TAG,"Area size11:" + areas[0]);
         // Decision Logic
         boolean exceedThresholdArea = false;
 
         for(int i = 0; i < areas.length ; i++){
             if (areas[i]>= this.areaThreshold)
                 exceedThresholdArea = true;
+                areaFire = this.getMaxArea(areas);
             break;
         }
-
+        Log.d(TAG,"Area size22:" + areas[0]);
         return  exceedThresholdArea;
+    }
+
+    private double getMaxArea(double areas []){
+        double maxArea = 0.0;
+        for(double area : areas){
+            if(area > maxArea){
+                maxArea = area;
+                maxArea = Math.round(maxArea * 100.0) / 100.0;
+            }
+        }
+        return maxArea;
+    }
+
+    public double getAreaFire() {
+        return areaFire;
+    }
+
+    public double convertAreaMeters(double areaPixels, double altura){
+        // RGB images distances
+        double Vdh = 2 * altura * Math.tan(hfov * (Math.PI / 180.0));
+        double Vdv = 2 * altura * Math.tan(vfov * (Math.PI / 180.0));
+        // Scale to thermal distances
+        double Tdh = Vdh * Sh;
+        double Tdv = Vdv * Sw;
+
+        Log.d(TAG,"Tdh:" + Tdh);
+        Log.d(TAG,"Tdv:" + Tdv);
+        double pixelSize = (Tdv * Tdh) / (heigth * width);
+        Log.d(TAG,"pixelSize:" + pixelSize);
+        double areaMeters = areaPixels * pixelSize;
+        Log.d(TAG,"areaPixels:" + areaPixels);
+        Log.d(TAG,"areaMeters:" + areaMeters);
+        return areaMeters;
     }
 
     public float getTemperatureThreshold() {

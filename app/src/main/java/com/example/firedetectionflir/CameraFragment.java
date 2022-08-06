@@ -536,7 +536,7 @@ public class CameraFragment extends Fragment {
 
     private void sendAlert(double maxTemperatureC, String position, double distanceM, String time){
         AlertService alertService = RetrofitInstance.getService();
-        AlertDataModel alertDataModel = new AlertDataModel(maxTemperatureC + " C", position, distanceM + " m", time);
+        AlertDataModel alertDataModel = new AlertDataModel(maxTemperatureC + " C", position, distanceM + " m", time, 1.0);
         Call<AlertDataModel> call = alertService.PostAlert(alertDataModel);
         call.enqueue(new Callback<AlertDataModel>() {
             @Override
@@ -564,9 +564,9 @@ public class CameraFragment extends Fragment {
         });
     }
 
-    private void sendAlertSocket(double maxTemperatureC, String position, double distanceM, String time){
+    private void sendAlertSocket(double maxTemperatureC, String position, double distanceM, String time, double areaFire){
         AlertService alertService = RetrofitInstance.getService();
-        AlertDataModel alertDataModel = new AlertDataModel(maxTemperatureC + " C", position, distanceM + " m", time);
+        AlertDataModel alertDataModel = new AlertDataModel(maxTemperatureC + " C", position, distanceM + " m", time, areaFire);
         desktopHost.alertFire(alertDataModel);
 
         alertSent = true;
@@ -586,8 +586,9 @@ public class CameraFragment extends Fragment {
         //Log.d(TAG, "activatedDetectionFire: " + activatedDetectionFire );
         if(activatedDetectionFire == false) return;
         if(alertSent == true) return;
+        double distance = 10.0;
 
-        Boolean fire = fireForestDetector.detectFire(frame, temperatures);
+        Boolean fire = fireForestDetector.detectFire(frame, temperatures, distance);
 
         if (fire){
             Log.d(TAG, "Warning: Fuegooooooooooooooooo!");
@@ -597,6 +598,7 @@ public class CameraFragment extends Fragment {
             for(double temperature : temperatures){
                 if(temperature > maxTemperature){
                     maxTemperature = temperature;
+                    maxTemperature = Math.round(maxTemperature * 100.0) / 100.0;
                 }
             }
 
@@ -606,14 +608,14 @@ public class CameraFragment extends Fragment {
             String position = "aqui ps";
 
             // Get distance
-            double distance = 10.0;
-
+            // Get area
+            double areaFire = fireForestDetector.getAreaFire();
             // Get time
             Date date = Calendar.getInstance().getTime();
             DateFormat dateFormat = new SimpleDateFormat("yyyy-mm-dd hh:mm:ss");
             String srtDate = dateFormat.format(date);
             // Enviar alerta
-            sendAlertSocket(maxTemperature, position, distance, srtDate);
+            sendAlertSocket(maxTemperature, position, distance, srtDate, areaFire);
         } else{
             Log.d(TAG, "No hay Fuegoooooooooooooo");
             //Toast.makeText(getContext(), "No hay Fuego", Toast.LENGTH_LONG).show();

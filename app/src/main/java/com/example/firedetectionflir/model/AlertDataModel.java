@@ -5,15 +5,17 @@ public class AlertDataModel {
     String position;
     String distance;
     String time;
+    double areaFire;
 
     public AlertDataModel(){
 
     }
-    public AlertDataModel(String maxTemperature, String position, String distance, String time) {
+    public AlertDataModel(String maxTemperature, String position, String distance, String time, double areaFire) {
         this.maxTemperature = maxTemperature;
         this.position = position;
         this.distance = distance;
         this.time = time;
+        this.areaFire = areaFire;
     }
 
     public String getMaxTemperature() {
