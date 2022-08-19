@@ -3,11 +3,10 @@ package com.example.firedetectionflir.service;
 import retrofit2.Retrofit;
 import retrofit2.converter.gson.GsonConverterFactory;
 
-public class RetrofitInstance {
+public class ServiceInstance {
     private static Retrofit retrofit = null;
     private static String BASE_URL = "http://192.168.0.11:5000/api/";
-    private static String BASE_URL_RADAR = "http://192.168.1.20:5000/api/";
-    private static Retrofit retrofitRadarService;
+    private static  RadarRxService radarRxService;
 
     public static AlertService getService(){
         if( retrofit == null){
@@ -20,14 +19,10 @@ public class RetrofitInstance {
         return retrofit.create(AlertService.class);
     }
 
-    public static RadarService getServiceRadar(){
-        if( retrofitRadarService == null){
-            retrofitRadarService = new Retrofit
-                    .Builder()
-                    .baseUrl(BASE_URL_RADAR)
-                    .addConverterFactory(GsonConverterFactory.create())
-                    .build();
+    public static RadarRxService getServiceRadar(){
+        if(radarRxService == null){
+            radarRxService = new RadarRxService();
         }
-        return retrofit.create(RadarService.class);
+        return radarRxService;
     }
 }

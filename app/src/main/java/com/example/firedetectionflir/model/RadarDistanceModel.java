@@ -1,21 +1,21 @@
 package com.example.firedetectionflir.model;
 
 public class RadarDistanceModel {
-    String distance;
+    double distance;
 
     public RadarDistanceModel(){
 
     }
 
-    public RadarDistanceModel(String distance) {
+    public RadarDistanceModel(double distance) {
         this.distance = distance;
     }
 
-    public String getDistance() {
+    public double getDistance() {
         return distance;
     }
 
-    public void setDistance(String distance) {
+    public void setDistance(double distance) {
         this.distance = distance;
     }
 }

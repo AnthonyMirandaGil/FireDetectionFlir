@@ -4,6 +4,6 @@ import org.bytedeco.javacv.Frame;
 
 public interface FireForestDetector {
 
-    boolean detectFire(Frame frame, double[] temperatures, double distance);
+    boolean detectFire(Frame frame, double[] temperatures);
     double getAreaFire();
 }

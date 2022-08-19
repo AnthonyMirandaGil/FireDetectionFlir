@@ -27,16 +27,14 @@ import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.CompoundButton;
 import android.widget.SeekBar;
-import android.widget.Spinner;
 import android.widget.Toast;
 
 import com.example.firedetectionflir.databinding.FragmentCameraBinding;
 import com.example.firedetectionflir.model.AlertDataModel;
-import com.example.firedetectionflir.model.RadarDistanceModel;
 import com.example.firedetectionflir.service.AlertService;
 import com.example.firedetectionflir.service.DesktopHost;
-import com.example.firedetectionflir.service.RadarService;
-import com.example.firedetectionflir.service.RetrofitInstance;
+import com.example.firedetectionflir.service.RadarRxService;
+import com.example.firedetectionflir.service.ServiceInstance;
 import com.flir.thermalsdk.ErrorCode;
 import com.flir.thermalsdk.androidsdk.image.BitmapAndroid;
 import com.flir.thermalsdk.androidsdk.live.connectivity.UsbPermissionHandler;
@@ -76,13 +74,13 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
-import java.util.Objects;
-import java.util.TreeMap;
+import java.util.concurrent.TimeUnit;
 
-import retrofit2.Call;
-import retrofit2.Callback;
-import retrofit2.Response;
-
+import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
+import io.reactivex.rxjava3.core.Observable;
+import io.reactivex.rxjava3.core.Scheduler;
+import io.reactivex.rxjava3.disposables.Disposable;
+import io.reactivex.rxjava3.schedulers.Schedulers;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
@@ -120,7 +118,9 @@ public class CameraFragment extends Fragment {
     private Boolean alertSent = false;
     private FireForestDetector fireForestDetector;
     private DesktopHost desktopHost;
-
+    private LocationGPSTracker locationGPSTracker;
+    private RadarRxService radarRxService;
+    private Disposable disposable;
     Runnable runnable;
     private Boolean activatedDetectionFire = false;
 
@@ -343,18 +343,54 @@ public class CameraFragment extends Fragment {
         fragmentCameraBinding.alertBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if(activatedDetectionFire == false)
-{
-                  activatedDetectionFire = true;
+                if(activatedDetectionFire == false) {
+                    /*if(locationGPSTracker == null){
+                        locationGPSTracker = new LocationGPSTracker(getActivity());
+                    }
+                    double latitude = locationGPSTracker.getLatitude();
+                    double longitud = locationGPSTracker.getLongitude();
+                    Toast.makeText(getContext(), "Latitud: " + latitude +  " ,  Longitud:" + longitud, Toast.LENGTH_SHORT).show();
+                    */
+                    RadarRxService radarRxService = ServiceInstance.getServiceRadar();
+                   disposable =  Observable.interval(0,200 , TimeUnit.MILLISECONDS)
 
-                  desktopHost.notifyStartFireDetection();
+                            .observeOn(AndroidSchedulers.mainThread())
+                            .subscribe(new io.reactivex.rxjava3.functions.Consumer<Long>() {
+                                @Override
+                                public void accept(Long aLong) throws Throwable {
+                                    radarRxService.getDistance()
+                                            .subscribeOn(Schedulers.io())
+                                            .observeOn(AndroidSchedulers.mainThread())
+                                            .subscribe(new io.reactivex.rxjava3.functions.Consumer<Double>() {
+                                                @Override
+                                                public void accept(Double aDouble) throws Throwable {
+                                                    Log.d("RadarService", "" + aDouble);
+                                                }
 
-                  fragmentCameraBinding.alertBtn.setText("Stop Fire Detection");
-                }else{
+                                            });
+                                }
+                            });
 
-                  activatedDetectionFire = false;
-                  desktopHost.notifyStopFireDetection();
-                  fragmentCameraBinding.alertBtn.setText("Start Fire Detection");
+                    /*RadarRxService radarRxService = ServiceInstance.getServiceRadar();
+                    radarRxService.getDistance()
+                            .subscribeOn(Schedulers.io())
+                            .observeOn(AndroidSchedulers.mainThread())
+                            .subscribe(new io.reactivex.rxjava3.functions.Consumer<String>() {
+                                @Override
+                                public void accept(String s) throws Throwable {
+                                    Log.d(TAG, s);
+                                }
+                            });
+                       */
+                    activatedDetectionFire = true;
+                    //desktopHost.notifyStartFireDetection();
+                    fragmentCameraBinding.alertBtn.setText("Stop Fire Detection");
+                } else {
+                    disposable.dispose();
+                    activatedDetectionFire = false;
+                    //desktopHost.notifyStopFireDetection();
+
+                    fragmentCameraBinding.alertBtn.setText("Start Fire Detection");
                 }
             }
         });
@@ -516,26 +552,26 @@ public class CameraFragment extends Fragment {
     }
 
     private double getRadarDistance(){
-        RadarService radarService = RetrofitInstance.getServiceRadar();
+        //RadarApi radarService = RetrofitInstance.getServiceRadar();
 
-        Call<RadarDistanceModel> call = radarService.getRadarDistance();
-        call.enqueue(new Callback<RadarDistanceModel>() {
-            @Override
-            public void onResponse(Call<RadarDistanceModel> call, Response<RadarDistanceModel> response) {
-                RadarDistanceModel radarDistance = response.body();
-                Log.d("Radar", radarDistance.toString());
-            }
+       // Call<RadarDistanceModel> call = radarService.getRadarDistance();
+       // call.enqueue(new Callback<RadarDistanceModel>() {
+       //     @Override
+        //    public void onResponse(Call<RadarDistanceModel> call, Response<RadarDistanceModel> response) {
+        //        RadarDistanceModel radarDistance = response.body();
+        //        Log.d("Radar", radarDistance.toString());
+         //   }
 
-            @Override
-            public void onFailure(Call<RadarDistanceModel> call, Throwable t) {
-
-            }
-        });
+        //    @Override
+        //    public void onFailure(Call<RadarDistanceModel> call, Throwable t) {
+        //
+        //   }
+        //});
         return 10.0;
     }
 
     private void sendAlert(double maxTemperatureC, String position, double distanceM, String time){
-        AlertService alertService = RetrofitInstance.getService();
+        AlertService alertService = ServiceInstance.getService();
         AlertDataModel alertDataModel = new AlertDataModel(maxTemperatureC + " C", position, distanceM + " m", time, 1.0);
         Call<AlertDataModel> call = alertService.PostAlert(alertDataModel);
         call.enqueue(new Callback<AlertDataModel>() {
@@ -565,7 +601,7 @@ public class CameraFragment extends Fragment {
     }
 
     private void sendAlertSocket(double maxTemperatureC, String position, double distanceM, String time, double areaFire){
-        AlertService alertService = RetrofitInstance.getService();
+        AlertService alertService = ServiceInstance.getService();
         AlertDataModel alertDataModel = new AlertDataModel(maxTemperatureC + " C", position, distanceM + " m", time, areaFire);
         desktopHost.alertFire(alertDataModel);
 
@@ -588,14 +624,14 @@ public class CameraFragment extends Fragment {
         if(alertSent == true) return;
         double distance = 10.0;
 
-        Boolean fire = fireForestDetector.detectFire(frame, temperatures, distance);
+        Boolean fire = fireForestDetector.detectFire(frame, temperatures);
 
         if (fire){
             Log.d(TAG, "Warning: Fuegooooooooooooooooo!");
             // Toast.makeText(getContext(), "Fuego", Toast.LENGTH_LONG).show();
             // Get Max Temperature
             double maxTemperature = 0.0;
-            for(double temperature : temperatures){
+            for(double temperature : temperatures) {
                 if(temperature > maxTemperature){
                     maxTemperature = temperature;
                     maxTemperature = Math.round(maxTemperature * 100.0) / 100.0;
@@ -617,7 +653,7 @@ public class CameraFragment extends Fragment {
             // Enviar alerta
             sendAlertSocket(maxTemperature, position, distance, srtDate, areaFire);
         } else{
-            Log.d(TAG, "No hay Fuegoooooooooooooo");
+            Log.d(TAG, "No hay Fuego Tranqui no mas");
             //Toast.makeText(getContext(), "No hay Fuego", Toast.LENGTH_LONG).show();
         }
         //activatedDetectionFire = false;

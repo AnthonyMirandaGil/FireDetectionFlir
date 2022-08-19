@@ -2,10 +2,11 @@ package com.example.firedetectionflir.service;
 
 import com.example.firedetectionflir.model.RadarDistanceModel;
 
-import retrofit2.Call;
+;
+import io.reactivex.rxjava3.core.Observable;
 import retrofit2.http.GET;
 
-public interface RadarService {
+public interface RadarApi {
     @GET("distance")
-    Call<RadarDistanceModel> getRadarDistance();
+    Observable<RadarDistanceModel> getRadarDistance();
 }

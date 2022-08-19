@@ -27,8 +27,8 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 
 public class FireForestLogicDetector implements FireForestDetector{
-    private float temperatureThreshold = 60.0F;
-    private float areaThreshold = 0.5F;
+    private float temperatureThreshold = 120.0F;
+    private float areaThreshold = 1.0F;
     private final String TAG = "FireForestLogicDetector";
    // RGB camera fov
     final double hfov = 50;
@@ -37,8 +37,10 @@ public class FireForestLogicDetector implements FireForestDetector{
     final double Sh = 0.6136;
     final int width = 480 ;
     final int heigth = 640;
+    final int frameRate = 5;
     // to thermal image scel
     public FireForestLogicDetector() {
+
     }
 
     private double areaFire;
@@ -48,9 +50,7 @@ public class FireForestLogicDetector implements FireForestDetector{
         this.areaThreshold = areaThreshold;
     }
 
-    @Override
-    public boolean detectFire(Frame frame, double[] temperatures, double altura) {
-   ;
+    public boolean detectFire(Frame frame, double[] temperatures, double altura ){
         final int[] WHITE = {255, 255, 255};
         final int[] BLACK = {0, 0, 0};
         int n;
@@ -105,15 +105,18 @@ public class FireForestLogicDetector implements FireForestDetector{
         //Mat dist_8u = new Mat();
         //mask.convertTo(dist_8u, CV_8U);
 
-        Log.d(TAG,"Contrours size:" + contours.size());
+        int nRegions = (int) contours.size();
+        Log.d(TAG,"Contrours size:" + nRegions);
+        if (nRegions  == 0)
+            return false;
 
-        double areas [] = new double[(int) contours.size()];
-
+        double areas [] = new double[nRegions];
 
         for (int i=0; i < contours.size(); i++){
             double areaPixels = contourArea(contours.get(i));
             areas[i] = this.convertAreaMeters(areaPixels, altura);
         }
+
         Log.d(TAG,"Area size11:" + areas[0]);
         // Decision Logic
         boolean exceedThresholdArea = false;
@@ -121,11 +124,22 @@ public class FireForestLogicDetector implements FireForestDetector{
         for(int i = 0; i < areas.length ; i++){
             if (areas[i]>= this.areaThreshold)
                 exceedThresholdArea = true;
-                areaFire = this.getMaxArea(areas);
+            areaFire = this.getMaxArea(areas);
             break;
         }
         Log.d(TAG,"Area size22:" + areas[0]);
         return  exceedThresholdArea;
+    }
+
+    @Override
+    public boolean detectFire(Frame frame, double[] temperatures) {
+        double prevTime = 0.0;
+        double time_elapsed = System.currentTimeMillis() - prevTime;
+        if (time_elapsed > (1.0 / frameRate)) {
+            prevTime = System.currentTimeMillis();
+            // Process image
+        }
+        return  false;
     }
 
     private double getMaxArea(double areas []){
@@ -145,8 +159,8 @@ public class FireForestLogicDetector implements FireForestDetector{
 
     public double convertAreaMeters(double areaPixels, double altura){
         // RGB images distances
-        double Vdh = 2 * altura * Math.tan(hfov * (Math.PI / 180.0));
-        double Vdv = 2 * altura * Math.tan(vfov * (Math.PI / 180.0));
+        double Vdh = 2 * altura * Math.tan(0.5 * hfov * (Math.PI / 180.0));
+        double Vdv = 2 * altura * Math.tan(0.5 * vfov * (Math.PI / 180.0));
         // Scale to thermal distances
         double Tdh = Vdh * Sh;
         double Tdv = Vdv * Sw;

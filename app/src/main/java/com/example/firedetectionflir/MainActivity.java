@@ -56,7 +56,9 @@ public class MainActivity extends AppCompatActivity {
     private final  int REQUEST_PERMISSION_WRITE_EXTERNAL_STORE = 101;
     private final  int REQUEST_PERMISSION_APP = 102;
     private final String [] permissions = {
-            Manifest.permission.WRITE_EXTERNAL_STORAGE
+            Manifest.permission.WRITE_EXTERNAL_STORAGE,
+            Manifest.permission.ACCESS_COARSE_LOCATION,
+            Manifest.permission.ACCESS_FINE_LOCATION
     };
 
     @Override
@@ -105,11 +107,12 @@ public class MainActivity extends AppCompatActivity {
                 for(int grantResult: grantResults) {
                     if (grantResult != PackageManager.PERMISSION_GRANTED){
                         Toast.makeText(this, "In order to use the app you have to grant permissions.", Toast.LENGTH_LONG).show();
-                        finish();
-                        return;
+                        //finish();
+                        //return;
                     }
-                    initializeApp();
+
                 }
+                initializeApp();
             }
 
         }
