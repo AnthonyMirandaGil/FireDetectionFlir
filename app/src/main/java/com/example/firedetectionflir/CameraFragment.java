@@ -78,9 +78,14 @@ import java.util.concurrent.TimeUnit;
 
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
 import io.reactivex.rxjava3.core.Observable;
+import io.reactivex.rxjava3.core.ObservableSource;
 import io.reactivex.rxjava3.core.Scheduler;
 import io.reactivex.rxjava3.disposables.Disposable;
+import io.reactivex.rxjava3.functions.BiFunction;
+import io.reactivex.rxjava3.functions.Function;
+import io.reactivex.rxjava3.functions.Function3;
 import io.reactivex.rxjava3.schedulers.Schedulers;
+import kotlin.jvm.functions.FunctionN;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
@@ -122,6 +127,9 @@ public class CameraFragment extends Fragment {
     private RadarRxService radarRxService;
     private Disposable disposable;
     Runnable runnable;
+    private int seconds;
+    private int num_detecs = 0;
+
     private Boolean activatedDetectionFire = false;
 
     private final String [] recordPermissions = {
@@ -344,49 +352,13 @@ public class CameraFragment extends Fragment {
             @Override
             public void onClick(View v) {
                 if(activatedDetectionFire == false) {
-                    /*if(locationGPSTracker == null){
-                        locationGPSTracker = new LocationGPSTracker(getActivity());
-                    }
-                    double latitude = locationGPSTracker.getLatitude();
-                    double longitud = locationGPSTracker.getLongitude();
-                    Toast.makeText(getContext(), "Latitud: " + latitude +  " ,  Longitud:" + longitud, Toast.LENGTH_SHORT).show();
-                    */
-                    RadarRxService radarRxService = ServiceInstance.getServiceRadar();
-                   disposable =  Observable.interval(0,200 , TimeUnit.MILLISECONDS)
-
-                            .observeOn(AndroidSchedulers.mainThread())
-                            .subscribe(new io.reactivex.rxjava3.functions.Consumer<Long>() {
-                                @Override
-                                public void accept(Long aLong) throws Throwable {
-                                    radarRxService.getDistance()
-                                            .subscribeOn(Schedulers.io())
-                                            .observeOn(AndroidSchedulers.mainThread())
-                                            .subscribe(new io.reactivex.rxjava3.functions.Consumer<Double>() {
-                                                @Override
-                                                public void accept(Double aDouble) throws Throwable {
-                                                    Log.d("RadarService", "" + aDouble);
-                                                }
-
-                                            });
-                                }
-                            });
-
-                    /*RadarRxService radarRxService = ServiceInstance.getServiceRadar();
-                    radarRxService.getDistance()
-                            .subscribeOn(Schedulers.io())
-                            .observeOn(AndroidSchedulers.mainThread())
-                            .subscribe(new io.reactivex.rxjava3.functions.Consumer<String>() {
-                                @Override
-                                public void accept(String s) throws Throwable {
-                                    Log.d(TAG, s);
-                                }
-                            });
-                       */
+                    runTimer();
+                    num_detecs =0;
                     activatedDetectionFire = true;
                     //desktopHost.notifyStartFireDetection();
                     fragmentCameraBinding.alertBtn.setText("Stop Fire Detection");
                 } else {
-                    disposable.dispose();
+                    /*disposable.dispose();*/
                     activatedDetectionFire = false;
                     //desktopHost.notifyStopFireDetection();
 
@@ -402,6 +374,72 @@ public class CameraFragment extends Fragment {
 
         return fragmentCameraBinding.getRoot();
         //return inflater.inflate(R.layout.fragment_camera, container, false);
+    }
+
+    private void runTimer(){
+        final Handler handler = new Handler();
+
+        handler.post(new Runnable() {
+            @Override
+            public void run() {
+                //int hours = seconds / 3600;
+                //int minutes = (seconds % 3600) / 60;
+                //int secs = seconds % 60;
+                if(activatedDetectionFire){
+                    seconds++;
+                    Log.d(TAG,seconds + "s" );
+                    handler.postDelayed(this, 1000);
+                }else {
+                    seconds = 0;
+                }
+            }
+        });
+    }
+
+    private double radarAverage(){
+
+       /* RadarRxService radarRxService = ServiceInstance.getServiceRadar();
+        List<Double> distances = new ArrayList<>();
+        Observable.timer(200, TimeUnit.MILLISECONDS)
+                .flatMap(new Function<Long, ObservableSource<Double>>() {
+                    @Override
+                    public ObservableSource<Double> apply(Long aLong) throws Throwable {
+                        return radarRxService.getDistance();
+                    }
+                })
+        .observeOn(AndroidSchedulers.mainThread())
+        .subscribe(new io.reactivex.rxjava3.functions.Consumer<Double>() {
+            @Override
+            public void accept(Double aDouble) throws Throwable {
+
+            }
+        })*/
+
+
+
+       /* Observable.interval(0,200, TimeUnit.MILLISECONDS)
+                .take(3)
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(new io.reactivex.rxjava3.functions.Consumer<Long>() {
+                    @Override
+                    public void accept(Long aLong) throws Throwable {
+                        radarRxService.getDistance()
+                                .subscribeOn(Schedulers.io())
+                                .observeOn(AndroidSchedulers.mainThread())
+                                .subscribe(new io.reactivex.rxjava3.functions.Consumer<Double>() {
+                                    @Override
+                                    public void accept(Double distance) throws Throwable {
+                                        Log.d("RadarService", "" + distance);
+                                        distances.add(distance);
+                                    }
+
+                                });
+                    }
+                })
+            */
+        ;
+
+        return  0;
     }
 
     private synchronized void waitDelay(){
@@ -438,6 +476,8 @@ public class CameraFragment extends Fragment {
         }
     }
 
+
+
     private synchronized void connectCamera(){
         camera = new Camera();
         try {
@@ -451,6 +491,7 @@ public class CameraFragment extends Fragment {
             e.printStackTrace();
         }
     }
+
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
@@ -624,38 +665,46 @@ public class CameraFragment extends Fragment {
         if(alertSent == true) return;
         double distance = 10.0;
 
-        Boolean fire = fireForestDetector.detectFire(frame, temperatures);
+       fireForestDetector
+               .detectFire(frame, temperatures)
+               .subscribe(new io.reactivex.rxjava3.functions.Consumer<Boolean>() {
+                    @Override
+                    public void accept(Boolean fire) throws Throwable {
+                        num_detecs++;
+                        if (fire){
+                            Log.d(TAG, "Warning: Fuegooooooooooooooooo!");
+                            // Toast.makeText(getContext(), "Fuego", Toast.LENGTH_LONG).show();
+                            // Get Max Temperature
+                            double maxTemperature = 0.0;
+                            for(double temperature : temperatures) {
+                                if(temperature > maxTemperature){
+                                    maxTemperature = temperature;
+                                    maxTemperature = Math.round(maxTemperature * 100.0) / 100.0;
+                                }
+                            }
 
-        if (fire){
-            Log.d(TAG, "Warning: Fuegooooooooooooooooo!");
-            // Toast.makeText(getContext(), "Fuego", Toast.LENGTH_LONG).show();
-            // Get Max Temperature
-            double maxTemperature = 0.0;
-            for(double temperature : temperatures) {
-                if(temperature > maxTemperature){
-                    maxTemperature = temperature;
-                    maxTemperature = Math.round(maxTemperature * 100.0) / 100.0;
-                }
-            }
+                            Log.d(TAG, "Warning: Alta temperatura detectada, N:" + num_detecs);
+                            //Toast.makeText(getContext(),"Fire detected", Toast.LENGTH_SHORT ).show();
+                            // Fire detection in rgb part
+                            String position = "aqui ps";
 
-            Log.d(TAG, "Warning: Alta temperatura detectada");
-            //Toast.makeText(getContext(),"Fire detected", Toast.LENGTH_SHORT ).show();
-            // Fire detection in rgb part
-            String position = "aqui ps";
+                            // Get distance
+                            // Get area
+                            double areaFire = fireForestDetector.getAreaFire();
+                            // Get time
+                            Date date = Calendar.getInstance().getTime();
+                            DateFormat dateFormat = new SimpleDateFormat("yyyy-mm-dd hh:mm:ss");
+                            String srtDate = dateFormat.format(date);
+                            // Enviar alerta
+                            sendAlertSocket(maxTemperature, position, distance, srtDate, areaFire);
+                        } else{
+                            //Log.d(TAG, "No hay Fuego Tranqui no mas, N:" + num_detecs);
+                            //Toast.makeText(getContext(), "No hay Fuego", Toast.LENGTH_LONG).show();
+                        }
+                    }
+                });
 
-            // Get distance
-            // Get area
-            double areaFire = fireForestDetector.getAreaFire();
-            // Get time
-            Date date = Calendar.getInstance().getTime();
-            DateFormat dateFormat = new SimpleDateFormat("yyyy-mm-dd hh:mm:ss");
-            String srtDate = dateFormat.format(date);
-            // Enviar alerta
-            sendAlertSocket(maxTemperature, position, distance, srtDate, areaFire);
-        } else{
-            Log.d(TAG, "No hay Fuego Tranqui no mas");
-            //Toast.makeText(getContext(), "No hay Fuego", Toast.LENGTH_LONG).show();
-        }
+
         //activatedDetectionFire = false;
         // Find max temperature
     }

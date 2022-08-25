@@ -1,8 +1,6 @@
 package com.example.firedetectionflir;
 
 import static org.bytedeco.opencv.global.opencv_core.CV_8UC1;
-import static org.bytedeco.opencv.global.opencv_core.CV_8UC3;
-import static org.bytedeco.opencv.global.opencv_core.CV_8U;
 import static org.bytedeco.opencv.global.opencv_imgproc.CV_CHAIN_APPROX_SIMPLE;
 import static org.bytedeco.opencv.global.opencv_imgproc.CV_RETR_EXTERNAL;
 import static org.bytedeco.opencv.global.opencv_imgproc.*;
@@ -13,7 +11,9 @@ import android.graphics.Bitmap;
 import android.os.Environment;
 import android.util.Log;
 
-import org.bytedeco.javacpp.indexer.Indexer;
+import com.example.firedetectionflir.service.RadarRxService;
+import com.example.firedetectionflir.service.ServiceInstance;
+
 import org.bytedeco.javacpp.indexer.UByteIndexer;
 import org.bytedeco.javacv.AndroidFrameConverter;
 import org.bytedeco.javacv.Frame;
@@ -25,10 +25,22 @@ import org.bytedeco.opencv.opencv_core.Mat;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
+
+import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
+import io.reactivex.rxjava3.annotations.NonNull;
+import io.reactivex.rxjava3.core.Observable;
+import io.reactivex.rxjava3.core.ObservableSource;
+import io.reactivex.rxjava3.core.Scheduler;
+import io.reactivex.rxjava3.functions.Function;
+import io.reactivex.rxjava3.schedulers.Schedulers;
 
 public class FireForestLogicDetector implements FireForestDetector{
-    private float temperatureThreshold = 120.0F;
-    private float areaThreshold = 1.0F;
+    private float temperatureThreshold = 50.0F;
+    private float areaThreshold = 0.5F;
     private final String TAG = "FireForestLogicDetector";
    // RGB camera fov
     final double hfov = 50;
@@ -37,7 +49,12 @@ public class FireForestLogicDetector implements FireForestDetector{
     final double Sh = 0.6136;
     final int width = 480 ;
     final int heigth = 640;
-    final int frameRate = 5;
+    final int frameRate = 2;
+    final double droneSpeed = 30;
+    private Frame currentFrame;
+    private double currentHeigth = 0.0;
+    private double gridHeigth = 0.5;
+    private double prevTime = 0.0;
     // to thermal image scel
     public FireForestLogicDetector() {
 
@@ -100,7 +117,6 @@ public class FireForestLogicDetector implements FireForestDetector{
         MatVector contours = new MatVector();
         findContours(mask, contours, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);
 
-
         // Calcule Areas
         //Mat dist_8u = new Mat();
         //mask.convertTo(dist_8u, CV_8U);
@@ -117,7 +133,6 @@ public class FireForestLogicDetector implements FireForestDetector{
             areas[i] = this.convertAreaMeters(areaPixels, altura);
         }
 
-        Log.d(TAG,"Area size11:" + areas[0]);
         // Decision Logic
         boolean exceedThresholdArea = false;
 
@@ -127,19 +142,131 @@ public class FireForestLogicDetector implements FireForestDetector{
             areaFire = this.getMaxArea(areas);
             break;
         }
-        Log.d(TAG,"Area size22:" + areas[0]);
         return  exceedThresholdArea;
     }
 
-    @Override
-    public boolean detectFire(Frame frame, double[] temperatures) {
-        double prevTime = 0.0;
-        double time_elapsed = System.currentTimeMillis() - prevTime;
-        if (time_elapsed > (1.0 / frameRate)) {
-            prevTime = System.currentTimeMillis();
-            // Process image
+    private Observable<Double> estimationMaxAltura(long numSamples, long period){
+        List<ObservableSource<Double>> observables = new ArrayList<>();
+        RadarRxService radarRxService = ServiceInstance.getServiceRadar();
+
+        for(int i = 0; i< numSamples; i++) {
+            observables.add(Observable.timer(period * i, TimeUnit.MILLISECONDS)
+                    .flatMap(new Function<Long, ObservableSource<Double>>() {
+                        @Override
+                        public ObservableSource<Double> apply(Long aLong) throws Throwable {
+                            return radarRxService.getDistance();
+                        }
+                    }));
         }
-        return  false;
+
+        return  Observable.zip(observables, new Function<Object[], Double>() {
+            @Override
+            public Double apply(Object[] objects) throws Throwable {
+                Double [] distances = Arrays.copyOf(objects, objects.length, Double[].class);
+                Double maxDistance = Double.NEGATIVE_INFINITY;
+
+                for (int i = 0; i < distances.length ; i++){
+                    if (distances[i] > maxDistance){
+                        maxDistance = distances[i];
+                    }
+                    //sumDistances += distances[i];
+                }
+                return maxDistance;
+            }
+        }).observeOn(Schedulers.io());
+    }
+
+    private Observable<Double> estimationMeanAltura(int numSamples, long period){
+        List<ObservableSource<Double>> observables = new ArrayList<>();
+        RadarRxService radarRxService = ServiceInstance.getServiceRadar();
+
+        for(int i = 0; i< numSamples; i++) {
+            observables.add(Observable.timer( period * i, TimeUnit.MILLISECONDS)
+                    .flatMap(new Function<Long, ObservableSource<Double>>() {
+                        @Override
+                        public ObservableSource<Double> apply(Long aLong) throws Throwable {
+                            return radarRxService.getDistance();
+                        }
+                    }));
+        }
+        return  Observable.zip(observables, new Function<Object[], Double>() {
+            @Override
+            public Double apply(Object[] objects) throws Throwable {
+                Double [] distances = Arrays.copyOf(objects, objects.length, Double[].class);
+                Double sumAlturas = 0.0;
+                for (int i = 0; i < distances.length ; i++){
+                    sumAlturas += distances[i];
+                }
+                return sumAlturas;
+            }
+        }).observeOn(Schedulers.io());
+    }
+
+    private int calculateNumSampleRadar(double altura){
+        double Vdh = 2 * altura * Math.tan(0.5 * hfov * (Math.PI / 180.0));
+        /* Scale to thermal distances */
+        double Tdh = Vdh * Sh;
+        int numSamplesRadar = (int) (Tdh / gridHeigth);
+        return numSamplesRadar;
+    }
+
+
+    @Override
+    public Observable<Boolean> detectFire(Frame frame, double[] temperatures) {
+        Observable<Double> estimationAltura;
+
+        double time_elapsed = System.currentTimeMillis() - prevTime;
+        double overlap = 0.75;
+        if (time_elapsed > ((overlap * 1.0) / frameRate) * 1000) {
+            prevTime = System.currentTimeMillis();
+            // Update Frame
+            currentFrame = frame;
+            Log.d("CameraFragment", "time_elapsed: " + time_elapsed + "ms" );
+            if (currentHeigth == 0.0){
+                estimationAltura = estimationMeanAltura(3, 50)
+                        .flatMap(new Function<Double, Observable<Double>>() {
+                            @Override
+                            public Observable<Double> apply(Double meanDistance) throws Throwable {
+
+                                int numSamplesRadar = calculateNumSampleRadar(meanDistance);
+                                long intervalPeriod = (long) (1.0 / frameRate) * (1 / numSamplesRadar);
+
+                                return estimationMaxAltura(numSamplesRadar, intervalPeriod);
+                            }
+                        });
+
+            } else {
+                int numSamplesRadar = calculateNumSampleRadar(currentHeigth);
+                long intervalPeriod = (long) (1.0 / frameRate) * (1 / numSamplesRadar);
+                estimationAltura = estimationMaxAltura(numSamplesRadar, intervalPeriod);
+            }
+
+           return estimationAltura
+                    .map(new Function<Double, Boolean>() {
+                        @Override
+                        public Boolean apply(Double altura) throws Throwable {
+                            boolean fire = detectFire(currentFrame, temperatures, altura);
+                            Log.d("CameraFragment", "Result Detection: " +  Boolean.toString(fire) );
+                            return fire;
+                    }});
+            // Get altura
+            /*estimationAltura
+                    .subscribe(new io.reactivex.rxjava3.functions.Consumer<Double>() {
+                        @Override
+                        public void accept(Double altura) throws Throwable {
+                            Boolean fire = detectFire(currentFrame, temperatures, altura);
+                            if(fire) {
+                                Log.d(TAG,"Fuegoooooo!!!!!");
+                                Log.d(TAG,"distance:" + altura);
+                            } else{
+                                Log.d(TAG,"Tranqui no mas no hay fuego");
+                                Log.d(TAG,"distance:" + altura);
+                            }
+                            // Update heitgth aqui probar manana
+                            currentHeigth = altura;
+                        }});*/
+        }
+        return  Observable.just(false);
     }
 
     private double getMaxArea(double areas []){

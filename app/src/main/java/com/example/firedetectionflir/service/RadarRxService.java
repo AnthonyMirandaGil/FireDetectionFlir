@@ -34,7 +34,7 @@ public class RadarRxService {
     }
 
     private double mapDistance(RadarDistanceModel result) {
-        Log.d("RadarRxService",  "" +  result.getDistance());
+        //Log.d("RadarRxService",  "" +  result.getDistance());
         return result.getDistance();
     }
 }

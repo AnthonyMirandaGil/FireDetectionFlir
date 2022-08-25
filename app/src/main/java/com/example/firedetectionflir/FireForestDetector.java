@@ -2,8 +2,10 @@ package com.example.firedetectionflir;
 
 import org.bytedeco.javacv.Frame;
 
-public interface FireForestDetector {
+import io.reactivex.rxjava3.core.Observable;
 
-    boolean detectFire(Frame frame, double[] temperatures);
+public interface FireForestDetector {
+    
+    Observable<Boolean> detectFire(Frame frame, double[] temperatures);
     double getAreaFire();
 }
