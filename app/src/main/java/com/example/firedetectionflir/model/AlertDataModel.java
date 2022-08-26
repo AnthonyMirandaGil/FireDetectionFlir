@@ -2,20 +2,47 @@ package com.example.firedetectionflir.model;
 
 public class AlertDataModel {
     String maxTemperature;
-    String position;
     String distance;
     String time;
     double areaFire;
 
+    public double getAreaFire() {
+        return areaFire;
+    }
+
+    public void setAreaFire(double areaFire) {
+        this.areaFire = areaFire;
+    }
+
+    public double getLatitud() {
+        return latitud;
+    }
+
+    public void setLatitud(double latitud) {
+        this.latitud = latitud;
+    }
+
+    public double getLongitud() {
+        return longitud;
+    }
+
+    public void setLongitud(double longitud) {
+        this.longitud = longitud;
+    }
+
+    double latitud;
+    double longitud;
+
     public AlertDataModel(){
 
     }
-    public AlertDataModel(String maxTemperature, String position, String distance, String time, double areaFire) {
+    public AlertDataModel(String maxTemperature, double latitud, double longitud , String distance, String time, double areaFire) {
         this.maxTemperature = maxTemperature;
-        this.position = position;
         this.distance = distance;
         this.time = time;
         this.areaFire = areaFire;
+        this.longitud = longitud;
+        this.latitud = latitud;
     }
 
     public String getMaxTemperature() {
@@ -24,14 +51,6 @@ public class AlertDataModel {
 
     public void setMaxTemperature(String maxTemperature) {
         this.maxTemperature = maxTemperature;
-    }
-
-    public String getPosition() {
-        return position;
-    }
-
-    public void setPosition(String position) {
-        this.position = position;
     }
 
     public String getDistance() {

@@ -40,7 +40,7 @@ import io.reactivex.rxjava3.schedulers.Schedulers;
 
 public class FireForestLogicDetector implements FireForestDetector{
     private float temperatureThreshold = 50.0F;
-    private float areaThreshold = 0.5F;
+    private float areaThreshold = 0.8F;
     private final String TAG = "FireForestLogicDetector";
    // RGB camera fov
     final double hfov = 50;
@@ -249,22 +249,7 @@ public class FireForestLogicDetector implements FireForestDetector{
                             Log.d("CameraFragment", "Result Detection: " +  Boolean.toString(fire) );
                             return fire;
                     }});
-            // Get altura
-            /*estimationAltura
-                    .subscribe(new io.reactivex.rxjava3.functions.Consumer<Double>() {
-                        @Override
-                        public void accept(Double altura) throws Throwable {
-                            Boolean fire = detectFire(currentFrame, temperatures, altura);
-                            if(fire) {
-                                Log.d(TAG,"Fuegoooooo!!!!!");
-                                Log.d(TAG,"distance:" + altura);
-                            } else{
-                                Log.d(TAG,"Tranqui no mas no hay fuego");
-                                Log.d(TAG,"distance:" + altura);
-                            }
-                            // Update heitgth aqui probar manana
-                            currentHeigth = altura;
-                        }});*/
+
         }
         return  Observable.just(false);
     }

@@ -8,10 +8,15 @@ import static org.bytedeco.opencv.global.opencv_imgproc.putText;
 import android.Manifest;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
+import android.os.Build;
 import android.os.Bundle;
 
+import androidx.activity.result.ActivityResultCallback;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.annotation.RequiresApi;
 import androidx.core.app.ActivityCompat;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.Observer;
@@ -74,6 +79,7 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
@@ -140,6 +146,13 @@ public class CameraFragment extends Fragment {
     private final String [] writePermissions = {
             Manifest.permission.WRITE_EXTERNAL_STORAGE
     };
+
+    private static final String[] LOCATION_PERMS= {
+            Manifest.permission.ACCESS_FINE_LOCATION
+    };
+
+    private static final int LOCATION_REQUEST= 108;
+
 
     public static CameraFragment newInstance(Identity identity) {
         CameraFragment fragment = new CameraFragment(identity);
@@ -353,14 +366,20 @@ public class CameraFragment extends Fragment {
             public void onClick(View v) {
                 if(activatedDetectionFire == false) {
                     runTimer();
+                    double latitud = locationGPSTracker.getLatitude();
+                    double longitude = locationGPSTracker.getLongitude();
+
+                    Log.d(TAG,  "Longitude:" + longitude);
+                    Log.d(TAG,  "latitud:" + latitud);
+
                     num_detecs =0;
                     activatedDetectionFire = true;
-                    //desktopHost.notifyStartFireDetection();
+                    desktopHost.notifyStartFireDetection();
                     fragmentCameraBinding.alertBtn.setText("Stop Fire Detection");
                 } else {
                     /*disposable.dispose();*/
                     activatedDetectionFire = false;
-                    //desktopHost.notifyStopFireDetection();
+                    desktopHost.notifyStopFireDetection();
 
                     fragmentCameraBinding.alertBtn.setText("Start Fire Detection");
                 }
@@ -371,6 +390,38 @@ public class CameraFragment extends Fragment {
         // Connect to server in desktop app
         desktopHost = new DesktopHost();
         desktopHost.connect();
+
+        // GPS tracker
+        if(ActivityCompat.checkSelfPermission( getContext(),Manifest.permission.ACCESS_FINE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED) {
+            locationGPSTracker = new LocationGPSTracker(getActivity());
+        }else {
+            ActivityResultLauncher<String[]> locationPermissionRequest =
+                    registerForActivityResult(new ActivityResultContracts.RequestMultiplePermissions(), new ActivityResultCallback<Map<String, Boolean>>() {
+                        @RequiresApi(api = Build.VERSION_CODES.N)
+                        @Override
+                        public void onActivityResult(Map<String, Boolean> result) {
+                            Boolean fineLocationGranted = result.getOrDefault(Manifest.permission.ACCESS_FINE_LOCATION, false);
+                            Boolean coarseLocationGranted = result.getOrDefault(Manifest.permission.ACCESS_COARSE_LOCATION, false);
+                            if(fineLocationGranted != null && fineLocationGranted){
+                                locationGPSTracker = new LocationGPSTracker(getActivity());
+                            }else if (coarseLocationGranted != null && coarseLocationGranted){
+                                Toast.makeText(getContext(), "Solo Aproximada localizacion garantizada", Toast.LENGTH_SHORT).show();
+                                //locationGPSTracker = new LocationGPSTracker(getActivity());
+                            }else {
+                                Toast.makeText(getContext(), "Gps Permision es requerido", Toast.LENGTH_SHORT).show();
+                            }
+                        }
+                    });
+
+            locationPermissionRequest.launch(new String[]{
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_COARSE_LOCATION
+            });
+        }
+
+          //requestPermissions(LOCATION_PERMS, LOCATION_REQUEST);
+
 
         return fragmentCameraBinding.getRoot();
         //return inflater.inflate(R.layout.fragment_camera, container, false);
@@ -611,9 +662,9 @@ public class CameraFragment extends Fragment {
         return 10.0;
     }
 
-    private void sendAlert(double maxTemperatureC, String position, double distanceM, String time){
+    private void sendAlert(double maxTemperatureC, double latutud, double longitud, double distanceM, String time){
         AlertService alertService = ServiceInstance.getService();
-        AlertDataModel alertDataModel = new AlertDataModel(maxTemperatureC + " C", position, distanceM + " m", time, 1.0);
+        AlertDataModel alertDataModel = new AlertDataModel(maxTemperatureC + " C", latutud, longitud, distanceM + " m", time, 1.0);
         Call<AlertDataModel> call = alertService.PostAlert(alertDataModel);
         call.enqueue(new Callback<AlertDataModel>() {
             @Override
@@ -641,9 +692,9 @@ public class CameraFragment extends Fragment {
         });
     }
 
-    private void sendAlertSocket(double maxTemperatureC, String position, double distanceM, String time, double areaFire){
+    private void sendAlertSocket(double maxTemperatureC, double latutud, double longitud, double distanceM, String time, double areaFire){
         AlertService alertService = ServiceInstance.getService();
-        AlertDataModel alertDataModel = new AlertDataModel(maxTemperatureC + " C", position, distanceM + " m", time, areaFire);
+        AlertDataModel alertDataModel = new AlertDataModel(maxTemperatureC + " C", latutud, longitud, distanceM + " m", time, areaFire);
         desktopHost.alertFire(alertDataModel);
 
         alertSent = true;
@@ -686,8 +737,9 @@ public class CameraFragment extends Fragment {
                             Log.d(TAG, "Warning: Alta temperatura detectada, N:" + num_detecs);
                             //Toast.makeText(getContext(),"Fire detected", Toast.LENGTH_SHORT ).show();
                             // Fire detection in rgb part
-                            String position = "aqui ps";
 
+                            double latitude = locationGPSTracker.getLatitude();
+                            double longitude = locationGPSTracker.getLongitude();
                             // Get distance
                             // Get area
                             double areaFire = fireForestDetector.getAreaFire();
@@ -696,7 +748,7 @@ public class CameraFragment extends Fragment {
                             DateFormat dateFormat = new SimpleDateFormat("yyyy-mm-dd hh:mm:ss");
                             String srtDate = dateFormat.format(date);
                             // Enviar alerta
-                            sendAlertSocket(maxTemperature, position, distance, srtDate, areaFire);
+                            sendAlertSocket(maxTemperature, latitude, longitude, distance, srtDate, areaFire);
                         } else{
                             //Log.d(TAG, "No hay Fuego Tranqui no mas, N:" + num_detecs);
                             //Toast.makeText(getContext(), "No hay Fuego", Toast.LENGTH_LONG).show();
