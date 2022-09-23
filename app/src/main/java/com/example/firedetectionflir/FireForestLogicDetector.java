@@ -12,6 +12,7 @@ import android.os.Environment;
 import android.util.Log;
 
 import com.example.firedetectionflir.service.RadarRxService;
+import com.example.firedetectionflir.service.RadarService;
 import com.example.firedetectionflir.service.ServiceInstance;
 
 import org.bytedeco.javacpp.indexer.UByteIndexer;
@@ -39,32 +40,65 @@ import io.reactivex.rxjava3.functions.Function;
 import io.reactivex.rxjava3.schedulers.Schedulers;
 
 public class FireForestLogicDetector implements FireForestDetector{
-    private float temperatureThreshold = 50.0F;
-    private float areaThreshold = 0.8F;
+    private float temperatureThreshold = 120.0F;
+    private float areaThreshold = 1.0F;
     private final String TAG = "FireForestLogicDetector";
    // RGB camera fov
-    final double hfov = 50;
-    final double vfov = 38;
+    final double hfov = 38;
+    final double vfov = 50;
     final double Sw = 0.620;
     final double Sh = 0.6136;
     final int width = 480 ;
     final int heigth = 640;
-    final int frameRate = 2;
-    final double droneSpeed = 30;
+    private double frameRate = 2;
+    private double flightSpeed;
+    private double flightHeight;
+    private double overlap;
     private Frame currentFrame;
-    private double currentHeigth = 0.0;
-    private double gridHeigth = 0.5;
+    private double Dv;
+    private double currentAltura = 0.396;
+    private double gridHeigth = 1.0;
     private double prevTime = 0.0;
-    // to thermal image scel
-    public FireForestLogicDetector() {
+    private double areaFire;
 
+    public double getCurrentAltura() {
+        return currentAltura;
     }
 
-    private double areaFire;
+
+    // to thermal image scel
+    public FireForestLogicDetector() {
+        this.overlap = 0.75;
+        // Initial Fps
+        this.frameRate = calculateFps(flightHeight);
+    }
+
+    public FireForestLogicDetector(double flightSpeed,  double flightHeight) {
+        this.overlap = 0.75;
+        this.flightSpeed = flightSpeed;
+        this.flightHeight = flightHeight;
+        // Initial Fps
+        this.frameRate = calculateFps(this.flightHeight);
+    }
 
     public FireForestLogicDetector(float temperatureThreshold, float areaThreshold) {
         this.temperatureThreshold = temperatureThreshold;
         this.areaThreshold = areaThreshold;
+        this.overlap = 0.75;
+        // Initial Fps
+        this.frameRate = calculateFps(flightHeight);
+    }
+
+    private double calculateFps(double altura){
+        double dv =  calculateLongitudeVFov(altura);
+        return  flightSpeed / ((1 - overlap) * dv);
+    }
+
+    private double calculateLongitudeVFov(double altura){
+        double Vdv = 2 * altura * Math.tan(0.5 * vfov * (Math.PI / 180.0));
+
+        double Tdv = Vdv * Sh;
+        return Tdv;
     }
 
     public boolean detectFire(Frame frame, double[] temperatures, double altura ){
@@ -73,6 +107,8 @@ public class FireForestLogicDetector implements FireForestDetector{
         int n;
         double valueTemp;
         // Mask hot regions
+        Log.d(TAG, "Analizando, altura:" + altura);
+
         OpenCVFrameConverter.ToMat converterToMat = new OpenCVFrameConverter.ToMat();
         Mat matFrame = converterToMat.convert(frame);
         //Mat maskRGB = matFrame.clone(); //new Mat(heigth, width, CV_8UC3);
@@ -122,7 +158,7 @@ public class FireForestLogicDetector implements FireForestDetector{
         //mask.convertTo(dist_8u, CV_8U);
 
         int nRegions = (int) contours.size();
-        Log.d(TAG,"Contrours size:" + nRegions);
+        Log.d(TAG,"Num regions:" + nRegions);
         if (nRegions  == 0)
             return false;
 
@@ -139,22 +175,29 @@ public class FireForestLogicDetector implements FireForestDetector{
         for(int i = 0; i < areas.length ; i++){
             if (areas[i]>= this.areaThreshold)
                 exceedThresholdArea = true;
-            areaFire = this.getMaxArea(areas);
+
             break;
         }
+
+        // Logs
+        areaFire = this.getMaxArea(areas);
+
+
+        currentAltura = altura;
+
         return  exceedThresholdArea;
     }
 
     private Observable<Double> estimationMaxAltura(long numSamples, long period){
         List<ObservableSource<Double>> observables = new ArrayList<>();
-        RadarRxService radarRxService = ServiceInstance.getServiceRadar();
+        RadarService radarService = ServiceInstance.getRadarSocketIOService();
 
         for(int i = 0; i< numSamples; i++) {
             observables.add(Observable.timer(period * i, TimeUnit.MILLISECONDS)
                     .flatMap(new Function<Long, ObservableSource<Double>>() {
                         @Override
                         public ObservableSource<Double> apply(Long aLong) throws Throwable {
-                            return radarRxService.getDistance();
+                            return radarService.getDistance();
                         }
                     }));
         }
@@ -178,26 +221,36 @@ public class FireForestLogicDetector implements FireForestDetector{
 
     private Observable<Double> estimationMeanAltura(int numSamples, long period){
         List<ObservableSource<Double>> observables = new ArrayList<>();
-        RadarRxService radarRxService = ServiceInstance.getServiceRadar();
+        RadarService radarService = ServiceInstance.getRadarSocketIOService();
 
         for(int i = 0; i< numSamples; i++) {
             observables.add(Observable.timer( period * i, TimeUnit.MILLISECONDS)
                     .flatMap(new Function<Long, ObservableSource<Double>>() {
                         @Override
                         public ObservableSource<Double> apply(Long aLong) throws Throwable {
-                            return radarRxService.getDistance();
+                            return radarService.getDistance();
                         }
                     }));
         }
+        
         return  Observable.zip(observables, new Function<Object[], Double>() {
             @Override
             public Double apply(Object[] objects) throws Throwable {
                 Double [] distances = Arrays.copyOf(objects, objects.length, Double[].class);
+
                 Double sumAlturas = 0.0;
+                int numNZeros = 0;
+
                 for (int i = 0; i < distances.length ; i++){
-                    sumAlturas += distances[i];
+                    if (distances[i] != 0.0) {
+                        numNZeros += 1;
+                        sumAlturas += distances[i];
+                    }
                 }
-                return sumAlturas;
+
+                double meanAltura = sumAlturas / (double) numNZeros;
+                Log.d(TAG,"Mean Altura:" + meanAltura);
+                return  meanAltura;
             }
         }).observeOn(Schedulers.io());
     }
@@ -206,7 +259,7 @@ public class FireForestLogicDetector implements FireForestDetector{
         double Vdh = 2 * altura * Math.tan(0.5 * hfov * (Math.PI / 180.0));
         /* Scale to thermal distances */
         double Tdh = Vdh * Sh;
-        int numSamplesRadar = (int) (Tdh / gridHeigth);
+        int numSamplesRadar = (int) Math.ceil(Tdh / gridHeigth);
         return numSamplesRadar;
     }
 
@@ -216,39 +269,48 @@ public class FireForestLogicDetector implements FireForestDetector{
         Observable<Double> estimationAltura;
 
         double time_elapsed = System.currentTimeMillis() - prevTime;
-        double overlap = 0.75;
-        if (time_elapsed > ((overlap * 1.0) / frameRate) * 1000) {
+        if (time_elapsed > ( 1 / frameRate) * 1000) {
             prevTime = System.currentTimeMillis();
             // Update Frame
             currentFrame = frame;
             Log.d("CameraFragment", "time_elapsed: " + time_elapsed + "ms" );
-            if (currentHeigth == 0.0){
+            if (currentAltura == 0.0) {
+                currentAltura = flightHeight;
                 estimationAltura = estimationMeanAltura(3, 50)
                         .flatMap(new Function<Double, Observable<Double>>() {
                             @Override
                             public Observable<Double> apply(Double meanDistance) throws Throwable {
-
-                                int numSamplesRadar = calculateNumSampleRadar(meanDistance);
+                                double newAltura = currentAltura;
+                                if (meanDistance!= null && meanDistance != 0.0) {
+                                    newAltura = meanDistance;
+                                    currentAltura = meanDistance;
+                                }
+                                int numSamplesRadar = calculateNumSampleRadar(newAltura);
                                 long intervalPeriod = (long) (1.0 / frameRate) * (1 / numSamplesRadar);
-
                                 return estimationMaxAltura(numSamplesRadar, intervalPeriod);
                             }
                         });
-
             } else {
-                int numSamplesRadar = calculateNumSampleRadar(currentHeigth);
+                double altura = flightHeight;
+                if (currentAltura != 0.0)
+                    altura = currentAltura;
+                int numSamplesRadar = calculateNumSampleRadar(altura);
                 long intervalPeriod = (long) (1.0 / frameRate) * (1 / numSamplesRadar);
                 estimationAltura = estimationMaxAltura(numSamplesRadar, intervalPeriod);
+                return estimationAltura
+                        .map(new Function<Double, Boolean>() {
+                            @Override
+                            public Boolean apply(Double altura) throws Throwable {
+                                if (altura != 0.0){
+                                    currentAltura = altura;
+                                }
+                                boolean fire = detectFire(currentFrame, temperatures, currentAltura);
+                                Log.d("CameraFragment", "Result Detection: " +  Boolean.toString(fire) );
+                                return fire;
+                            }});
             }
 
-           return estimationAltura
-                    .map(new Function<Double, Boolean>() {
-                        @Override
-                        public Boolean apply(Double altura) throws Throwable {
-                            boolean fire = detectFire(currentFrame, temperatures, altura);
-                            Log.d("CameraFragment", "Result Detection: " +  Boolean.toString(fire) );
-                            return fire;
-                    }});
+
 
         }
         return  Observable.just(false);
@@ -267,6 +329,16 @@ public class FireForestLogicDetector implements FireForestDetector{
 
     public double getAreaFire() {
         return areaFire;
+    }
+
+    @Override
+    public void setFlightSpeed(double flightSpeed) {
+        this.flightSpeed = flightSpeed;
+    }
+
+    @Override
+    public void setFligtHeight(double fligtHeight) {
+        this.flightHeight = fligtHeight;
     }
 
     public double convertAreaMeters(double areaPixels, double altura){

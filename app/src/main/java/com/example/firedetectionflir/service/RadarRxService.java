@@ -12,7 +12,7 @@ import retrofit2.Retrofit;
 import retrofit2.adapter.rxjava3.RxJava3CallAdapterFactory;
 import retrofit2.converter.gson.GsonConverterFactory;
 
-public class RadarRxService {
+public class RadarRxService implements RadarService {
     private RadarApi radarApi;
     private final String BASE_URL= "http://192.168.43.133:5000/api/radar/";
 

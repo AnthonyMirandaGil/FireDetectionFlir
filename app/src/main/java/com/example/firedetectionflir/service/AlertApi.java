@@ -6,7 +6,7 @@ import retrofit2.Call;
 import retrofit2.http.Body;
 import retrofit2.http.POST;
 
-public interface AlertService {
+public interface AlertApi {
     @POST("alert")
     Call<AlertDataModel> PostAlert(@Body AlertDataModel alertDataModel);
 }

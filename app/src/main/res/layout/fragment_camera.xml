@@ -11,7 +11,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginStart="3dp"
-        android:layout_marginTop="6dp"
+        android:layout_marginTop="4dp"
         android:layout_marginEnd="82dp"
         android:text="Paleta"
         android:textSize="16sp"
@@ -32,21 +32,23 @@
 
     <TextView
         android:id="@+id/tvFusionMode"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
+        android:layout_width="92dp"
+        android:layout_height="22dp"
         android:layout_marginStart="4dp"
-        android:layout_marginTop="10dp"
-        android:layout_marginEnd="34dp"
+        android:layout_marginTop="16dp"
         android:text="Fusion Mode"
         android:textSize="16sp"
-        app:layout_constraintEnd_toStartOf="@+id/spinnerFusion"
+        app:layout_constraintBottom_toTopOf="@+id/streamingView"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/tvPaletta" />
+        app:layout_constraintTop_toBottomOf="@+id/tvPaletta"
+        app:layout_constraintVertical_bias="0.0" />
 
     <Spinner
         android:id="@+id/spinnerFusion"
-        android:layout_width="0dp"
-        android:layout_height="24dp"
+        android:layout_width="241dp"
+        android:layout_height="30dp"
+        android:layout_marginStart="10dp"
+        android:layout_marginEnd="24dp"
         app:layout_constraintBottom_toBottomOf="@+id/tvFusionMode"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toEndOf="@+id/tvFusionMode"
@@ -54,89 +56,47 @@
 
     <ImageView
         android:id="@+id/streamingView"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:layout_marginStart="1dp"
-        android:layout_marginTop="33dp"
-        android:layout_marginEnd="1dp"
-        android:layout_marginBottom="33dp"
+        android:layout_width="407dp"
+        android:layout_height="390dp"
+        android:layout_marginTop="14dp"
+        android:layout_marginBottom="10dp"
         android:src="@drawable/ic_launcher_foreground"
-        app:layout_constraintBottom_toBottomOf="@+id/seekBar"
+        app:layout_constraintBottom_toTopOf="@+id/textView"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="@+id/spinnerFusion" />
+        app:layout_constraintTop_toBottomOf="@+id/spinnerFusion" />
 
     <Button
         android:id="@+id/btnTakePicture"
         android:layout_width="131dp"
-        android:layout_height="wrap_content"
-        android:layout_marginEnd="45dp"
-        android:layout_marginBottom="4dp"
+        android:layout_height="56dp"
+        android:layout_marginStart="20dp"
         android:text="Take Picture"
-        app:layout_constraintBottom_toTopOf="@+id/alertBtn"
-        app:layout_constraintEnd_toStartOf="@+id/recordButton"
-        app:layout_constraintStart_toStartOf="parent" />
+        app:layout_constraintBottom_toBottomOf="@+id/recordButton"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="@+id/recordButton" />
 
     <Button
         android:id="@+id/recordButton"
-        android:layout_width="130dp"
+        android:layout_width="131dp"
         android:layout_height="wrap_content"
+        android:layout_marginEnd="20dp"
+        android:layout_marginBottom="5dp"
         android:text="Start Record"
-        app:layout_constraintBottom_toBottomOf="@+id/btnTakePicture"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="@+id/enableRafaga"
-        app:layout_constraintTop_toTopOf="@+id/btnTakePicture" />
-
-    <TextView
-        android:id="@+id/tvRafaga"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="4dp"
-        android:layout_marginBottom="15dp"
-        android:text="Take photo every 1 seconds"
-        app:layout_constraintBottom_toTopOf="@+id/btnTakePicture"
-        app:layout_constraintStart_toStartOf="parent" />
-
-    <Switch
-        android:id="@+id/enableRafaga"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="31dp"
-        android:text="enabled"
-        app:layout_constraintBottom_toBottomOf="@+id/tvRafaga"
-        app:layout_constraintStart_toEndOf="@+id/tvRafaga"
-        app:layout_constraintTop_toTopOf="@+id/tvRafaga" />
-
-    <SeekBar
-        android:id="@+id/seekBar"
-        android:layout_width="0dp"
-        android:layout_height="23dp"
-        android:layout_marginEnd="16dp"
-        android:layout_marginBottom="14dp"
-        app:layout_constraintBottom_toTopOf="@+id/enableRafaga"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toEndOf="@+id/textView" />
-
-    <TextView
-        android:id="@+id/textView"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="4dp"
-        android:layout_marginEnd="36dp"
-        android:text="FPS"
-        app:layout_constraintBottom_toBottomOf="@+id/seekBar"
-        app:layout_constraintEnd_toStartOf="@+id/seekBar"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="@+id/seekBar" />
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
 
     <Button
         android:id="@+id/alertBtn"
         android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="16dp"
+        android:layout_height="44dp"
+        android:layout_marginStart="80dp"
+        android:layout_marginEnd="80dp"
+        android:layout_marginBottom="8dp"
         android:text="Start Fire Detection"
-        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintBottom_toTopOf="@+id/btnTakePicture"
         app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.0"
         app:layout_constraintStart_toStartOf="parent" />
 
     <androidx.constraintlayout.widget.Barrier
@@ -145,5 +105,65 @@
         android:layout_height="wrap_content"
         app:barrierDirection="left"
         tools:layout_editor_absoluteX="411dp" />
+
+    <EditText
+        android:id="@+id/editTextVelocity"
+        android:layout_width="0dp"
+        android:layout_height="42dp"
+        android:layout_marginEnd="16dp"
+        android:ems="10"
+        android:fontFamily="sans-serif-light"
+        android:inputType="numberDecimal"
+        android:text="30"
+        android:textSize="16sp"
+        app:layout_constraintBottom_toBottomOf="@+id/textView"
+        app:layout_constraintEnd_toStartOf="@+id/textView2"
+        app:layout_constraintStart_toEndOf="@+id/textView"
+        app:layout_constraintTop_toTopOf="@+id/textView"
+        app:layout_constraintVertical_bias="0.333" />
+
+    <EditText
+        android:id="@+id/editTextAltura"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="31dp"
+        android:layout_marginBottom="133dp"
+        android:ems="10"
+        android:fontFamily="sans-serif-light"
+        android:inputType="numberDecimal"
+        android:text="10"
+        android:textSize="16sp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toEndOf="@+id/textView2"
+        app:layout_constraintTop_toTopOf="@+id/editTextVelocity"
+        app:layout_constraintVertical_bias="0.0" />
+
+    <TextView
+        android:id="@+id/textView"
+        android:layout_width="79dp"
+        android:layout_height="34dp"
+        android:layout_marginStart="4dp"
+        android:layout_marginTop="15dp"
+        android:layout_marginEnd="40dp"
+        android:layout_marginBottom="24dp"
+        android:text="Velocidad (km/h)"
+        android:textAlignment="center"
+        app:layout_constraintBottom_toTopOf="@+id/alertBtn"
+        app:layout_constraintEnd_toStartOf="@+id/editTextVelocity"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/streamingView" />
+
+    <TextView
+        android:id="@+id/textView2"
+        android:layout_width="71dp"
+        android:layout_height="39dp"
+        android:layout_marginEnd="24dp"
+        android:text="Altura (metros)"
+        android:textAlignment="center"
+        app:layout_constraintBottom_toBottomOf="@+id/editTextAltura"
+        app:layout_constraintEnd_toStartOf="@+id/editTextAltura"
+        app:layout_constraintStart_toEndOf="@+id/editTextVelocity"
+        app:layout_constraintTop_toTopOf="@+id/editTextAltura" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -1,5 +1,6 @@
 package com.example.firedetectionflir;
 
+import static com.example.firedetectionflir.utils.Utils.maxArray;
 import static org.bytedeco.opencv.global.opencv_imgproc.FONT_HERSHEY_COMPLEX;
 import static org.bytedeco.opencv.global.opencv_imgproc.LINE_AA;
 import static org.bytedeco.opencv.global.opencv_imgproc.circle;
@@ -36,9 +37,10 @@ import android.widget.Toast;
 
 import com.example.firedetectionflir.databinding.FragmentCameraBinding;
 import com.example.firedetectionflir.model.AlertDataModel;
-import com.example.firedetectionflir.service.AlertService;
+import com.example.firedetectionflir.service.AlertApi;
 import com.example.firedetectionflir.service.DesktopHost;
 import com.example.firedetectionflir.service.RadarRxService;
+import com.example.firedetectionflir.service.RadarService;
 import com.example.firedetectionflir.service.ServiceInstance;
 import com.flir.thermalsdk.ErrorCode;
 import com.flir.thermalsdk.androidsdk.image.BitmapAndroid;
@@ -80,18 +82,8 @@ import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 
-import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
-import io.reactivex.rxjava3.core.Observable;
-import io.reactivex.rxjava3.core.ObservableSource;
-import io.reactivex.rxjava3.core.Scheduler;
 import io.reactivex.rxjava3.disposables.Disposable;
-import io.reactivex.rxjava3.functions.BiFunction;
-import io.reactivex.rxjava3.functions.Function;
-import io.reactivex.rxjava3.functions.Function3;
-import io.reactivex.rxjava3.schedulers.Schedulers;
-import kotlin.jvm.functions.FunctionN;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
@@ -135,7 +127,10 @@ public class CameraFragment extends Fragment {
     Runnable runnable;
     private int seconds;
     private int num_detecs = 0;
-
+    private AlertService fireAlertService;
+    private double fligthSpeed = 30.0;
+    private double fligthHeight = 10;
+    private RadarService radarService;
     private Boolean activatedDetectionFire = false;
 
     private final String [] recordPermissions = {
@@ -303,7 +298,8 @@ public class CameraFragment extends Fragment {
             }
         });
 
-        fragmentCameraBinding.enableRafaga.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+
+                /*fragmentCameraBinding.enableRafaga.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
                 if(isChecked){
@@ -323,16 +319,6 @@ public class CameraFragment extends Fragment {
                             }, delay);
                         }
                     }, 3000);
-
-                    /*if(rafagaThread == null){
-                        rafagaThread = new Thread(new Runnable() {
-                            @Override
-                            public void run() {
-
-                            }
-                        });
-                    }*/
-                    //Toast.makeText(getContext(), "Start automatic capture every " + delay / 1000.0 + "seconds", Toast.LENGTH_SHORT).show();
                 } else {
                     handler.removeCallbacks(runnable);
                     handlerSleep.removeCallbacks(runnable);
@@ -340,10 +326,11 @@ public class CameraFragment extends Fragment {
                 }
             }
         });
-        fragmentCameraBinding.seekBar.setMax(30);
-
+        */
+        /*fragmentCameraBinding.seekBar.setMax(30);
+       */
         //fragmentCameraBinding.seekBar.setMin(1);
-        fragmentCameraBinding.seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+        /*fragmentCameraBinding.seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
                 fpsTake = progress;
@@ -360,6 +347,7 @@ public class CameraFragment extends Fragment {
                 Toast.makeText(getContext(),"FPS: " + fpsTake, Toast.LENGTH_SHORT).show();
             }
         });
+        */
 
         fragmentCameraBinding.alertBtn.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -372,8 +360,26 @@ public class CameraFragment extends Fragment {
                     Log.d(TAG,  "Longitude:" + longitude);
                     Log.d(TAG,  "latitud:" + latitud);
 
-                    num_detecs =0;
+                    num_detecs = 0;
                     activatedDetectionFire = true;
+
+                    String strSpeed = fragmentCameraBinding.editTextVelocity.getText().toString();
+                    double speed = 30.0;
+                    String strHeight = fragmentCameraBinding.editTextAltura.getText().toString();
+                    double height = 10;
+                    if (strSpeed != null && strSpeed != ""){
+                        fligthSpeed = Double.parseDouble(strSpeed);
+                        Log.d(TAG, "FlightSpeed: " + fligthSpeed);
+                    }
+
+
+                    if (strHeight != null && strHeight != ""){
+                        fligthHeight = Double.parseDouble(strHeight);
+                        Log.d(TAG, "FligtHeight: " + fligthHeight);
+                    }
+
+                    fireForestDetector = new FireForestLogicDetector(fligthSpeed, fligthHeight);
+
                     desktopHost.notifyStartFireDetection();
                     fragmentCameraBinding.alertBtn.setText("Stop Fire Detection");
                 } else {
@@ -385,8 +391,10 @@ public class CameraFragment extends Fragment {
                 }
             }
         });
+        // Default fire forest
+        fireForestDetector = new FireForestLogicDetector(fligthSpeed, fligthHeight);
+        radarService = ServiceInstance.getRadarSocketIOService();
 
-        fireForestDetector = new FireForestLogicDetector();
         // Connect to server in desktop app
         desktopHost = new DesktopHost();
         desktopHost.connect();
@@ -422,6 +430,7 @@ public class CameraFragment extends Fragment {
 
           //requestPermissions(LOCATION_PERMS, LOCATION_REQUEST);
 
+        fireAlertService = new AlertService(desktopHost);
 
         return fragmentCameraBinding.getRoot();
         //return inflater.inflate(R.layout.fragment_camera, container, false);
@@ -625,15 +634,7 @@ public class CameraFragment extends Fragment {
                         e.printStackTrace();
                     }
 
-                    /*new Thread(() -> {
-                        try {
-                            ThermalCSVWriter thermalCSVWriter = new ThermalCSVWriter(null, "image_" + stringTs);
-                            thermalCSVWriter.saveThermalValues(temperatures, 0);
-                            thermalCSVWriter.close();
-                        } catch (IOException e) {
-                            e.printStackTrace();
-                        }
-                    }).start();*/
+
                 }
             });
 
@@ -663,7 +664,7 @@ public class CameraFragment extends Fragment {
     }
 
     private void sendAlert(double maxTemperatureC, double latutud, double longitud, double distanceM, String time){
-        AlertService alertService = ServiceInstance.getService();
+        AlertApi alertService = ServiceInstance.getService();
         AlertDataModel alertDataModel = new AlertDataModel(maxTemperatureC + " C", latutud, longitud, distanceM + " m", time, 1.0);
         Call<AlertDataModel> call = alertService.PostAlert(alertDataModel);
         call.enqueue(new Callback<AlertDataModel>() {
@@ -693,7 +694,7 @@ public class CameraFragment extends Fragment {
     }
 
     private void sendAlertSocket(double maxTemperatureC, double latutud, double longitud, double distanceM, String time, double areaFire){
-        AlertService alertService = ServiceInstance.getService();
+        AlertApi alertService = ServiceInstance.getService();
         AlertDataModel alertDataModel = new AlertDataModel(maxTemperatureC + " C", latutud, longitud, distanceM + " m", time, areaFire);
         desktopHost.alertFire(alertDataModel);
 
@@ -713,7 +714,6 @@ public class CameraFragment extends Fragment {
         // if alert already have been sent
         //Log.d(TAG, "activatedDetectionFire: " + activatedDetectionFire );
         if(activatedDetectionFire == false) return;
-        if(alertSent == true) return;
         double distance = 10.0;
 
        fireForestDetector
@@ -724,34 +724,40 @@ public class CameraFragment extends Fragment {
                         num_detecs++;
                         if (fire){
                             Log.d(TAG, "Warning: Fuegooooooooooooooooo!");
-                            // Toast.makeText(getContext(), "Fuego", Toast.LENGTH_LONG).show();
-                            // Get Max Temperature
-                            double maxTemperature = 0.0;
-                            for(double temperature : temperatures) {
-                                if(temperature > maxTemperature){
-                                    maxTemperature = temperature;
-                                    maxTemperature = Math.round(maxTemperature * 100.0) / 100.0;
-                                }
+                            // Enviar alerta
+                            if (fireAlertService.alreadySent)
+                                return;
+
+                            if (fireAlertService.getRegister()!= null){
+                                Log.d(TAG, "Sent Warning: Fuegooooooooooooooooo!");
+                                fireAlertService.dispatch();
+                            }else {
+                                Log.d(TAG, "Register Warning: Fuegooooooooooooooooo!");
+                                // Toast.makeText(getContext(), "Fuego", Toast.LENGTH_LONG).show();
+
+                                // Get Max Temperature
+                                double maxTemperature = maxArray(temperatures, 2);
+
+                                Log.d(TAG, "Warning: Alta temperatura detectada, N:" + num_detecs);
+                                //Toast.makeText(getContext(),"Fire detected", Toast.LENGTH_SHORT ).show();
+
+                                // Get localization
+                                double latitude = locationGPSTracker.getLatitude();
+                                double longitude = locationGPSTracker.getLongitude();
+                                // Get distance
+
+                                // Get area
+                                double areaFire = fireForestDetector.getAreaFire();
+
+                                // Get time
+                                Date date = Calendar.getInstance().getTime();
+                                DateFormat dateFormat = new SimpleDateFormat("yyyy-mm-dd hh:mm:ss");
+                                String srtDate = dateFormat.format(date);
+
+                                AlertDataModel alertDataModel = new AlertDataModel(maxTemperature + " C", latitude, longitude, distance + " m", srtDate, areaFire);
+                                fireAlertService.registerDetection(alertDataModel);
                             }
 
-                            Log.d(TAG, "Warning: Alta temperatura detectada, N:" + num_detecs);
-                            //Toast.makeText(getContext(),"Fire detected", Toast.LENGTH_SHORT ).show();
-                            // Fire detection in rgb part
-
-                            double latitude = locationGPSTracker.getLatitude();
-                            double longitude = locationGPSTracker.getLongitude();
-                            // Get distance
-                            // Get area
-                            double areaFire = fireForestDetector.getAreaFire();
-                            // Get time
-                            Date date = Calendar.getInstance().getTime();
-                            DateFormat dateFormat = new SimpleDateFormat("yyyy-mm-dd hh:mm:ss");
-                            String srtDate = dateFormat.format(date);
-                            // Enviar alerta
-                            sendAlertSocket(maxTemperature, latitude, longitude, distance, srtDate, areaFire);
-                        } else{
-                            //Log.d(TAG, "No hay Fuego Tranqui no mas, N:" + num_detecs);
-                            //Toast.makeText(getContext(), "No hay Fuego", Toast.LENGTH_LONG).show();
                         }
                     }
                 });
@@ -837,7 +843,7 @@ public class CameraFragment extends Fragment {
     public void onPause() {
         handler.removeCallbacks(runnable);
         handlerSleep.removeCallbacks(runnable);
-        fragmentCameraBinding.enableRafaga.setChecked(false);
+        //fragmentCameraBinding.enableRafaga.setChecked(false);
         super.onPause();
     }
 
