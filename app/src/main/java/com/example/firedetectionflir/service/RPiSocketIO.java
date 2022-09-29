@@ -14,7 +14,8 @@ import io.socket.emitter.Emitter;
 public final class RPiSocketIO {
     //private static  RPiSocketIO rPiSocketIO;
     private static Socket mSocket;
-    private static String HOST_URL = "http://192.168.43.133:5055";
+    //private static String HOST_URL = "http://192.168.43.133:5055";
+    private static String HOST_URL = "http://192.168.43.11:5055";
     private RPiSocketIO(){ }
     private static final String Tag = "RPiSocketIO";
     private static double distance = 0.0;
@@ -61,5 +62,8 @@ public final class RPiSocketIO {
             connect();
         }
         return mSocket;
+    }
+    public static boolean connected(){
+        return  mSocket.connected();
     }
 }

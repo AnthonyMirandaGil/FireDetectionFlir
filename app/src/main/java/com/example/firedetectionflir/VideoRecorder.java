@@ -79,7 +79,7 @@ public class VideoRecorder {
 
         //ContentResolver resolver = context.getContentResolver();
         Long ts = System.currentTimeMillis() / 1000;
-        videoFileName = "stream_"+ ts + ".mp4";
+        videoFileName = "video_flir_"+ ts + ".mp4";
         File imageSDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES);
         //String p = Environment.getExternalStorageDirectory(Environment.DIRECTORY_PICTURES);
         File videoFile = new File(imageSDir, videoFileName );

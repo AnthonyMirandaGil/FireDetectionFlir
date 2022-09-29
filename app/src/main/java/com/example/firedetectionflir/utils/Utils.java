@@ -9,7 +9,7 @@ public class Utils {
                 maxVal = val;
                 if ( precision != null && precision >= 0) {
                     double factor10 = Math.pow(10.0, precision);
-                    maxVal = Math.round(maxVal * Math.pow(10.0, factor10)) / factor10;
+                    maxVal = Math.round(maxVal * factor10) / factor10;
                 }
             }
         }

@@ -10,4 +10,7 @@ public interface FireForestDetector {
     double getAreaFire();
     void setFlightSpeed(double flightSpeed);
     void setFligtHeight(double fligtHeight);
+    FireForestLogicDetector.LevelAlert getLevelAlert();
+    public double getCurrentAltura();
+
 }

@@ -33,6 +33,11 @@ public class RadarRxService implements RadarService {
                 .map(result -> mapDistance(result));
     }
 
+    @Override
+    public boolean isActive() {
+       return radarApi != null;
+    }
+
     private double mapDistance(RadarDistanceModel result) {
         //Log.d("RadarRxService",  "" +  result.getDistance());
         return result.getDistance();

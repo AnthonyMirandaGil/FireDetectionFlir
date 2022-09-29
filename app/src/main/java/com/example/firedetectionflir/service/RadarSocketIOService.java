@@ -21,4 +21,9 @@ public class RadarSocketIOService implements RadarService{
         double distance = RPiSocketIO.getDistance();
         return Observable.just(distance);
     }
+
+    @Override
+    public boolean isActive() {
+        return RPiSocketIO.connected();
+    }
 }

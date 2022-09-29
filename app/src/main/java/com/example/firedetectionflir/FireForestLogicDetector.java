@@ -6,12 +6,8 @@ import static org.bytedeco.opencv.global.opencv_imgproc.CV_RETR_EXTERNAL;
 import static org.bytedeco.opencv.global.opencv_imgproc.*;
 
 
-
-import android.graphics.Bitmap;
-import android.os.Environment;
 import android.util.Log;
 
-import com.example.firedetectionflir.service.RadarRxService;
 import com.example.firedetectionflir.service.RadarService;
 import com.example.firedetectionflir.service.ServiceInstance;
 
@@ -23,25 +19,19 @@ import org.bytedeco.opencv.opencv_core.MatVector;
 //import org.opencv.core.Mat;
 import org.bytedeco.opencv.opencv_core.Mat;
 
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
-import io.reactivex.rxjava3.annotations.NonNull;
 import io.reactivex.rxjava3.core.Observable;
 import io.reactivex.rxjava3.core.ObservableSource;
-import io.reactivex.rxjava3.core.Scheduler;
 import io.reactivex.rxjava3.functions.Function;
 import io.reactivex.rxjava3.schedulers.Schedulers;
 
 public class FireForestLogicDetector implements FireForestDetector{
-    private float temperatureThreshold = 120.0F;
-    private float areaThreshold = 1.0F;
+    private double temperatureThreshold = 50.0;
+    private double areaThreshold = 0.01;
     private final String TAG = "FireForestLogicDetector";
    // RGB camera fov
     final double hfov = 38;
@@ -56,10 +46,25 @@ public class FireForestLogicDetector implements FireForestDetector{
     private double overlap;
     private Frame currentFrame;
     private double Dv;
-    private double currentAltura = 0.396;
+    private double currentAltura = 0.0;
     private double gridHeigth = 1.0;
     private double prevTime = 0.0;
     private double areaFire;
+
+    public int getNumCurrentHotRegions() {
+        return numCurrentHotRegions;
+    }
+
+    private int numCurrentHotRegions;
+    public enum LevelAlert {
+        ORANGE,
+        RED
+    }
+    private LevelAlert levelAlert;
+
+    public LevelAlert getLevelAlert() {
+        return levelAlert;
+    }
 
     public double getCurrentAltura() {
         return currentAltura;
@@ -135,8 +140,8 @@ public class FireForestLogicDetector implements FireForestDetector{
         // save mask
         AndroidFrameConverter converterToFrame = new AndroidFrameConverter();
         Frame maskFrame = converterToMat.convert(mask);
-        Bitmap imageMask = converterToFrame.convert(maskFrame);
 
+        /*Bitmap imageMask = converterToFrame.convert(maskFrame);
         Long timeSeconds = System.currentTimeMillis() / 10;
         String stringTs = timeSeconds.toString();
         File imageSDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES);
@@ -149,6 +154,7 @@ public class FireForestLogicDetector implements FireForestDetector{
             e.printStackTrace();
         }
         imageMask.compress(Bitmap.CompressFormat.JPEG, 100, fos);
+        */
 
         MatVector contours = new MatVector();
         findContours(mask, contours, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);
@@ -175,17 +181,34 @@ public class FireForestLogicDetector implements FireForestDetector{
         for(int i = 0; i < areas.length ; i++){
             if (areas[i]>= this.areaThreshold)
                 exceedThresholdArea = true;
-
             break;
         }
+
 
         // Logs
         areaFire = this.getMaxArea(areas);
 
+        if (areaFire > areaThreshold ) {
+            exceedThresholdArea = true;
+        }
 
+        Log.d(TAG, "exceedThresholdArea: " + Boolean.toString(exceedThresholdArea));
+
+        if (areaFire >= 0.25 && areaFire < 1.0){
+            levelAlert = LevelAlert.ORANGE;
+        }else if (areaFire > 1.0) {
+            levelAlert = LevelAlert.RED;
+        }
+
+        numCurrentHotRegions = areas.length;
         currentAltura = altura;
 
         return  exceedThresholdArea;
+    }
+
+    private boolean radarServiceIsActive(){
+        RadarService radarService = ServiceInstance.getRadarSocketIOService();
+        return  radarService.isActive();
     }
 
     private Observable<Double> estimationMaxAltura(long numSamples, long period){
@@ -248,7 +271,11 @@ public class FireForestLogicDetector implements FireForestDetector{
                     }
                 }
 
+                if (numNZeros == 0)
+                    return 0.0;
+
                 double meanAltura = sumAlturas / (double) numNZeros;
+
                 Log.d(TAG,"Mean Altura:" + meanAltura);
                 return  meanAltura;
             }
@@ -273,46 +300,56 @@ public class FireForestLogicDetector implements FireForestDetector{
             prevTime = System.currentTimeMillis();
             // Update Frame
             currentFrame = frame;
-            Log.d("CameraFragment", "time_elapsed: " + time_elapsed + "ms" );
-            if (currentAltura == 0.0) {
-                currentAltura = flightHeight;
-                estimationAltura = estimationMeanAltura(3, 50)
-                        .flatMap(new Function<Double, Observable<Double>>() {
-                            @Override
-                            public Observable<Double> apply(Double meanDistance) throws Throwable {
-                                double newAltura = currentAltura;
-                                if (meanDistance!= null && meanDistance != 0.0) {
-                                    newAltura = meanDistance;
-                                    currentAltura = meanDistance;
+            Log.d("CameraFragment", "time_elapsed: " + time_elapsed + "ms");
+            boolean radarIsActive = radarServiceIsActive();
+            Log.d(TAG,"Radar status: " +  Boolean.toString(radarIsActive));
+            if (radarIsActive) {
+                if (currentAltura == 0.0) {
+                    currentAltura = flightHeight;
+                    estimationAltura = estimationMeanAltura(3, 50)
+                            .flatMap(new Function<Double, Observable<Double>>() {
+                                @Override
+                                public Observable<Double> apply(Double meanDistance) throws Throwable {
+                                    double newAltura = currentAltura;
+                                    if (meanDistance != null && meanDistance != 0.0) {
+                                        newAltura = meanDistance;
+                                        currentAltura = meanDistance;
+                                    }
+                                    int numSamplesRadar = calculateNumSampleRadar(newAltura);
+                                    long intervalPeriod = (long) (1.0 / frameRate) * (1 / numSamplesRadar);
+                                    return estimationMaxAltura(numSamplesRadar, intervalPeriod);
                                 }
-                                int numSamplesRadar = calculateNumSampleRadar(newAltura);
-                                long intervalPeriod = (long) (1.0 / frameRate) * (1 / numSamplesRadar);
-                                return estimationMaxAltura(numSamplesRadar, intervalPeriod);
-                            }
-                        });
-            } else {
-                double altura = flightHeight;
-                if (currentAltura != 0.0)
-                    altura = currentAltura;
-                int numSamplesRadar = calculateNumSampleRadar(altura);
-                long intervalPeriod = (long) (1.0 / frameRate) * (1 / numSamplesRadar);
-                estimationAltura = estimationMaxAltura(numSamplesRadar, intervalPeriod);
+                            });
+                } else {
+                    double altura = flightHeight;
+                    if (currentAltura != 0.0)
+                        altura = currentAltura;
+                    int numSamplesRadar = calculateNumSampleRadar(altura);
+                    long intervalPeriod = (long) (1.0 / frameRate) * (1 / numSamplesRadar);
+                    estimationAltura = estimationMaxAltura(numSamplesRadar, intervalPeriod);
+                }
+
                 return estimationAltura
                         .map(new Function<Double, Boolean>() {
                             @Override
                             public Boolean apply(Double altura) throws Throwable {
-                                if (altura != 0.0){
+                                if (altura != 0.0) {
                                     currentAltura = altura;
                                 }
                                 boolean fire = detectFire(currentFrame, temperatures, currentAltura);
-                                Log.d("CameraFragment", "Result Detection: " +  Boolean.toString(fire) );
+                                Log.d("CameraFragment", "Result Detection: " + Boolean.toString(fire));
                                 return fire;
-                            }});
+                            }
+                        });
+            } else {
+                if (currentAltura == 0.0) {
+                    currentAltura = flightHeight;
+                }
+                boolean fire = detectFire(currentFrame, temperatures, currentAltura);
+                return Observable.just(fire);
             }
-
-
-
         }
+
         return  Observable.just(false);
     }
 
@@ -321,7 +358,7 @@ public class FireForestLogicDetector implements FireForestDetector{
         for(double area : areas){
             if(area > maxArea){
                 maxArea = area;
-                maxArea = Math.round(maxArea * 100.0) / 100.0;
+                maxArea = Math.round(maxArea * 10000.0) / 10000.0;
             }
         }
         return maxArea;
@@ -359,7 +396,7 @@ public class FireForestLogicDetector implements FireForestDetector{
         return areaMeters;
     }
 
-    public float getTemperatureThreshold() {
+    public double getTemperatureThreshold() {
         return temperatureThreshold;
     }
 
@@ -367,7 +404,7 @@ public class FireForestLogicDetector implements FireForestDetector{
         this.temperatureThreshold = temperatureThreshold;
     }
 
-    public float getAreaThreshold() {
+    public double getAreaThreshold() {
         return areaThreshold;
     }
 

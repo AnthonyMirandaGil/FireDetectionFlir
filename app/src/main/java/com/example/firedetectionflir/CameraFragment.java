@@ -113,6 +113,7 @@ public class CameraFragment extends Fragment {
     private Thread rafagaThread;
     private Handler handler = new Handler();
     private Handler handlerSleep = new Handler();
+    private Handler handlerAlert = new Handler();
     private int delay = 50;
     private int fpsTake;
     private final String TAG = "CameraFragment";
@@ -354,6 +355,9 @@ public class CameraFragment extends Fragment {
             public void onClick(View v) {
                 if(activatedDetectionFire == false) {
                     runTimer();
+
+                    fireAlertService.reset();
+
                     double latitud = locationGPSTracker.getLatitude();
                     double longitude = locationGPSTracker.getLongitude();
 
@@ -371,7 +375,6 @@ public class CameraFragment extends Fragment {
                         fligthSpeed = Double.parseDouble(strSpeed);
                         Log.d(TAG, "FlightSpeed: " + fligthSpeed);
                     }
-
 
                     if (strHeight != null && strHeight != ""){
                         fligthHeight = Double.parseDouble(strHeight);
@@ -644,58 +647,12 @@ public class CameraFragment extends Fragment {
         }
     }
 
-    private double getRadarDistance(){
-        //RadarApi radarService = RetrofitInstance.getServiceRadar();
 
-       // Call<RadarDistanceModel> call = radarService.getRadarDistance();
-       // call.enqueue(new Callback<RadarDistanceModel>() {
-       //     @Override
-        //    public void onResponse(Call<RadarDistanceModel> call, Response<RadarDistanceModel> response) {
-        //        RadarDistanceModel radarDistance = response.body();
-        //        Log.d("Radar", radarDistance.toString());
-         //   }
 
-        //    @Override
-        //    public void onFailure(Call<RadarDistanceModel> call, Throwable t) {
-        //
-        //   }
-        //});
-        return 10.0;
-    }
-
-    private void sendAlert(double maxTemperatureC, double latutud, double longitud, double distanceM, String time){
-        AlertApi alertService = ServiceInstance.getService();
-        AlertDataModel alertDataModel = new AlertDataModel(maxTemperatureC + " C", latutud, longitud, distanceM + " m", time, 1.0);
-        Call<AlertDataModel> call = alertService.PostAlert(alertDataModel);
-        call.enqueue(new Callback<AlertDataModel>() {
-            @Override
-            public void onResponse(Call<AlertDataModel> call, Response<AlertDataModel> response) {
-                AlertDataModel resp = response.body();
-                Toast.makeText(getContext(), "Envio Alerta", Toast.LENGTH_SHORT).show();
-
-                alertSent = true;
-                Handler handler = new Handler();
-
-                handler.postDelayed(new Runnable() {
-                    @Override
-                    public void run() {
-                        alertSent = false;
-                        Log.d(TAG, "New Alert");
-                    }
-                }, 10000);
-            }
-
-            @Override
-            public void onFailure(Call<AlertDataModel> call, Throwable t) {
-                Log.i("TAG", t.toString());
-                Toast.makeText(getContext(), "Error Alerta: " + t.getMessage(), Toast.LENGTH_SHORT).show();
-            }
-        });
-    }
 
     private void sendAlertSocket(double maxTemperatureC, double latutud, double longitud, double distanceM, String time, double areaFire){
         AlertApi alertService = ServiceInstance.getService();
-        AlertDataModel alertDataModel = new AlertDataModel(maxTemperatureC + " C", latutud, longitud, distanceM + " m", time, areaFire);
+        AlertDataModel alertDataModel = new AlertDataModel(maxTemperatureC + " C", latutud, longitud, distanceM + " m", time, areaFire, FireForestLogicDetector.LevelAlert.ORANGE);
         desktopHost.alertFire(alertDataModel);
 
         alertSent = true;
@@ -710,7 +667,7 @@ public class CameraFragment extends Fragment {
         }, 10000);
     }
 
-    private void fireDetection(Frame frame, double [] temperatures){
+    private void fireDetection(ThermalImage thermalImage, Frame frame, double[] temperatures){
         // if alert already have been sent
         //Log.d(TAG, "activatedDetectionFire: " + activatedDetectionFire );
         if(activatedDetectionFire == false) return;
@@ -723,7 +680,9 @@ public class CameraFragment extends Fragment {
                     public void accept(Boolean fire) throws Throwable {
                         num_detecs++;
                         if (fire){
+
                             Log.d(TAG, "Warning: Fuegooooooooooooooooo!");
+
                             // Enviar alerta
                             if (fireAlertService.alreadySent)
                                 return;
@@ -731,13 +690,26 @@ public class CameraFragment extends Fragment {
                             if (fireAlertService.getRegister()!= null){
                                 Log.d(TAG, "Sent Warning: Fuegooooooooooooooooo!");
                                 fireAlertService.dispatch();
-                            }else {
+                                fireAlertService.freezeAlertService();
+                                takePicture(false);
+
+
+                                int timeSleep = 5;
+                                handlerAlert.postDelayed(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        fireAlertService.reset();
+                                        Log.d(TAG, "New Alert");
+                                    }
+                                }, timeSleep * 1000);
+
+                            } else {
                                 Log.d(TAG, "Register Warning: Fuegooooooooooooooooo!");
                                 // Toast.makeText(getContext(), "Fuego", Toast.LENGTH_LONG).show();
 
                                 // Get Max Temperature
-                                double maxTemperature = maxArray(temperatures, 2);
-
+                                double maxTemperature = maxArray(temperatures, 4);
+                                Log.d(TAG, "Warning: maxTemperature:" + maxTemperature);
                                 Log.d(TAG, "Warning: Alta temperatura detectada, N:" + num_detecs);
                                 //Toast.makeText(getContext(),"Fire detected", Toast.LENGTH_SHORT ).show();
 
@@ -745,16 +717,18 @@ public class CameraFragment extends Fragment {
                                 double latitude = locationGPSTracker.getLatitude();
                                 double longitude = locationGPSTracker.getLongitude();
                                 // Get distance
-
+                                double alturaVuelo = fireForestDetector.getCurrentAltura();
                                 // Get area
                                 double areaFire = fireForestDetector.getAreaFire();
 
+                                Log.d(TAG, "Warning: Area:" + areaFire);
+                                FireForestLogicDetector.LevelAlert levelAlert = fireForestDetector.getLevelAlert();
                                 // Get time
                                 Date date = Calendar.getInstance().getTime();
-                                DateFormat dateFormat = new SimpleDateFormat("yyyy-mm-dd hh:mm:ss");
+                                DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss");
                                 String srtDate = dateFormat.format(date);
-
-                                AlertDataModel alertDataModel = new AlertDataModel(maxTemperature + " C", latitude, longitude, distance + " m", srtDate, areaFire);
+                                Log.d(TAG, "Warning: DATE: " + srtDate);
+                                AlertDataModel alertDataModel = new AlertDataModel(maxTemperature + " C", latitude, longitude, distance + " m", srtDate, areaFire,levelAlert);
                                 fireAlertService.registerDetection(alertDataModel);
                             }
 
@@ -798,17 +772,25 @@ public class CameraFragment extends Fragment {
                     // Umbral para detectar objetos
                     temperatures = thermalImage.getValues(new Rectangle(0, 0, thermalImage.getWidth(), thermalImage.getHeight()));
 
+                    double currentAltura = fireForestDetector.getCurrentAltura();
 
                     // Fire deteccion and Alert
-                    fireDetection(frame, temperatures);
+                    fireDetection(thermalImage, frame, temperatures);
 
                     OpenCVFrameConverter.ToMat converterToMat = new OpenCVFrameConverter.ToMat();
                     Mat matImage = converterToMat.convert(frame);
 
+                    // show center temperature
                     putText(matImage,centerTemp.asCelsius() + "", new Point(centerX + 20, centerY), FONT_HERSHEY_COMPLEX, 1.0, new Scalar(0, 255, 0, 0.2));
                     circle(matImage,  new Point(centerX,centerY), 4, new Scalar(255,0,0, 0.2), 4, LINE_AA,0);
 
+                    //
+                    double area = fireForestDetector.getAreaFire();
+                    putText(matImage, "Altura: " + currentAltura, new Point(0, 20), FONT_HERSHEY_COMPLEX, 0.8, new Scalar(255, 255, 255, 0.2));
+                    putText(matImage, "Area Fuego: " + area + " m", new Point(0, 48), FONT_HERSHEY_COMPLEX, 0.8, new Scalar(255, 255, 255, 0.2));
+                    double maxTemperature = maxArray(temperatures,4);
 
+                    putText(matImage, "Maxima Temperatura: " + maxTemperature + " C", new Point(0, 76), FONT_HERSHEY_COMPLEX, 0.8, new Scalar(255, 255, 255, 0.2));
                     //Log.v(TAG, "Writing Frame");
                     frame = converterToMat.convert(matImage);
                     msxBitmap = converterToFrame.convert(frame);
@@ -843,6 +825,7 @@ public class CameraFragment extends Fragment {
     public void onPause() {
         handler.removeCallbacks(runnable);
         handlerSleep.removeCallbacks(runnable);
+        handlerAlert.removeCallbacksAndMessages(null);
         //fragmentCameraBinding.enableRafaga.setChecked(false);
         super.onPause();
     }

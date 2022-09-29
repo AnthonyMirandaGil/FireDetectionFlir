@@ -1,10 +1,15 @@
 package com.example.firedetectionflir.model;
 
+import com.example.firedetectionflir.FireForestLogicDetector;
+
 public class AlertDataModel {
     String maxTemperature;
     String distance;
     String time;
     double areaFire;
+
+    FireForestLogicDetector.LevelAlert levelAlert;
+
 
     public double getAreaFire() {
         return areaFire;
@@ -36,13 +41,15 @@ public class AlertDataModel {
     public AlertDataModel(){
 
     }
-    public AlertDataModel(String maxTemperature, double latitud, double longitud , String distance, String time, double areaFire) {
+
+    public AlertDataModel(String maxTemperature, double latitud, double longitud , String distance, String time, double areaFire, FireForestLogicDetector.LevelAlert levelAlert) {
         this.maxTemperature = maxTemperature;
         this.distance = distance;
         this.time = time;
         this.areaFire = areaFire;
         this.longitud = longitud;
         this.latitud = latitud;
+        this.levelAlert = levelAlert;
     }
 
     public String getMaxTemperature() {

@@ -10,9 +10,9 @@ public class AlertService {
     final String TAG = "AlertService";
     AlertDataModel register;
     HostService hostService;
-    int timeSleep = 30;
+    int timeSleep = 5;
     Boolean alreadySent = false;
-
+    Handler handler;
     public AlertDataModel getRegister() {
         return register;
     }
@@ -25,18 +25,13 @@ public class AlertService {
         hostService.notifyFire(register);
         freezeAlertService();
     }
+    public void reset(){
+        register = null;
+        alreadySent = false;
+    }
 
-    private void freezeAlertService(){
+    public void freezeAlertService(){
         alreadySent = true;
-        Handler handler = new Handler();
-
-        handler.postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                alreadySent = false;
-                Log.d(TAG, "New Alert");
-            }
-        }, timeSleep * 1000);
     }
 
     public void registerDetection(AlertDataModel alertData){
